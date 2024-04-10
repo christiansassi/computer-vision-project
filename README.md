@@ -1,2 +1,1 @@
-# computer-vision
-Project developed by Pietro Bologna (@bolognapietro) and Christian Sassi for the Computer Vision course.
+![Dogs Typing](https://media.giphy.com/media/Dh5q0sShxgp13DwrvG/giphy.gif)
