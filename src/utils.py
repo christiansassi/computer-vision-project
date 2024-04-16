@@ -14,11 +14,20 @@ def show_img(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat, list[cv2.
         # Copy the image
         _mat = m.copy()
 
-        # Calculate new height
-        height = int(monitor.height / ratio)
+        if monitor.height < monitor.width:
+            # Calculate new height
+            height = int(monitor.height / ratio)
 
-        # Calculate new height proportional to the width
-        width = int(height * _mat.shape[1] / _mat.shape[0])
+            # Calculate new width proportional to the height
+            width = int(height * _mat.shape[1] / _mat.shape[0])
+        
+        else:
+            # Calculate new height
+            width = int(monitor.width / ratio)
+
+            # Calculate new height proportional to the width
+            height = int(width * _mat.shape[0] / _mat.shape[1])
+
         winsize = (width, height)
 
         # Resize the image
