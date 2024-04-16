@@ -22,7 +22,7 @@ def show_img(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat, list[cv2.
             width = int(height * _mat.shape[1] / _mat.shape[0])
         
         else:
-            # Calculate new height
+            # Calculate new width
             width = int(monitor.width / ratio)
 
             # Calculate new height proportional to the width
