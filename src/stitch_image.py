@@ -124,11 +124,3 @@ def stitch_images(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMa
     stitched_image[correction[1]:correction[1]+left_frame.shape[0], correction[0]:correction[0]+left_frame.shape[1]] = left_frame
 
     return stitched_image
-
-def resize(img, h, w):
-    return cv2.resize(img, (int(h/2), int(w/2)))
-
-left_frame = cv2.imread("left.png")
-right_frame = cv2.imread("right.png")
-
-stitch_images(left_frame=left_frame, right_frame=right_frame)  
