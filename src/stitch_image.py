@@ -106,15 +106,13 @@ def get_new_frame_size_and_matrix(homography_matrix: np.ndarray, left_frame_shap
     
     return [new_height, new_width], correction, homography_matrix
 
-
-
 def stitch_images(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat]) -> np.ndarray:
 
     # Finding matches between the 2 images and their keypoints
     matches, left_frame_keypoints, right_frame_keypoints = find_matches(left_frame=left_frame, right_frame=right_frame)
     
     # Finding homography matrix.
-    homography_matrix, _ = find_homography(matches=matches, left_frame_keypoints=left_frame_keypoints, right_frame_keypoints=right_frame_keypoints)
+    homography_matrix = find_homography(matches=matches, left_frame_keypoints=left_frame_keypoints, right_frame_keypoints=right_frame_keypoints)
     
     # Finding size of new frame of stitched images and updating the homography matrix 
     new_frame_size, correction, homography_matrix = get_new_frame_size_and_matrix(homography_matrix, right_frame.shape[:2], left_frame.shape[:2])
