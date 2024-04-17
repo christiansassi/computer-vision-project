@@ -2,6 +2,39 @@ import cv2
 import numpy as np      
 
 from typing import Union
+import inspect
+
+def auto_crop(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat]) -> np.ndarray:
+
+    # Copy the image
+    _mat = mat.copy()
+
+    _mat = cv2.cvtColor(src=_mat, code=cv2.COLOR_BGR2GRAY)
+    _, _mat = cv2.threshold(_mat, 1, 255, cv2.THRESH_BINARY)
+
+    # Supposing that during stitching it is the right frame to be modified and not the left one
+    non_zero = cv2.findNonZero(_mat[:, 0])
+    y_top = non_zero[0][0][1]
+    y_bottom = non_zero[-1][0][1]
+    
+    _mat = _mat[y_top:y_bottom+1, :]
+
+    # Get first right column with all pixels different from 0
+    for x in range(_mat.shape[1]-1, -1, -1):
+
+        if np.count_nonzero(_mat[:, x]) != _mat.shape[0]:
+            continue
+
+        right = x
+        break
+    
+    _mat = _mat[:, :right+1]
+
+    # Crop the original image
+    crop_mat = mat.copy()
+    crop_mat = crop_mat[y_top:y_bottom+1, :right+1]
+
+    return crop_mat
 
 def find_matches(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], value: float = 0.4, k: int = 2) -> tuple[list[list], tuple[cv2.KeyPoint], tuple[cv2.KeyPoint]]:
 
@@ -106,19 +139,36 @@ def get_new_frame_size_and_matrix(homography_matrix: np.ndarray, left_frame_shap
     
     return [new_height, new_width], correction, homography_matrix
 
-def stitch_images(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat]) -> np.ndarray:
+def stitch_images(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], crop: bool = True, clear_cache: bool = True) -> np.ndarray:
 
-    # Finding matches between the 2 images and their keypoints
-    matches, left_frame_keypoints, right_frame_keypoints = find_matches(left_frame=left_frame, right_frame=right_frame)
-    
-    # Finding homography matrix.
-    homography_matrix = find_homography(matches=matches, left_frame_keypoints=left_frame_keypoints, right_frame_keypoints=right_frame_keypoints)
-    
-    # Finding size of new frame of stitched images and updating the homography matrix 
-    new_frame_size, correction, homography_matrix = get_new_frame_size_and_matrix(homography_matrix, right_frame.shape[:2], left_frame.shape[:2])
-    
+    function = eval(inspect.stack()[0][3])
+
+    try:
+        new_frame_size, correction, homography_matrix = function.cache
+
+        if clear_cache:
+            new_frame_size, correction, homography_matrix = None, None, None
+
+    except:
+        new_frame_size, correction, homography_matrix = None, None, None
+
+    if all(obj is None for obj in [new_frame_size, correction, homography_matrix]):
+        # Finding matches between the 2 images and their keypoints
+        matches, left_frame_keypoints, right_frame_keypoints = find_matches(left_frame=left_frame, right_frame=right_frame)
+        
+        # Finding homography matrix.
+        homography_matrix = find_homography(matches=matches, left_frame_keypoints=left_frame_keypoints, right_frame_keypoints=right_frame_keypoints)
+        
+        # Finding size of new frame of stitched images and updating the homography matrix
+        new_frame_size, correction, homography_matrix = get_new_frame_size_and_matrix(homography_matrix, right_frame.shape[:2], left_frame.shape[:2])
+
+        function.cache = new_frame_size, correction, homography_matrix
+
     # Finally placing the images upon one another.
     stitched_image = cv2.warpPerspective(right_frame, homography_matrix, (new_frame_size[1], new_frame_size[0]))
     stitched_image[correction[1]:correction[1]+left_frame.shape[0], correction[0]:correction[0]+left_frame.shape[1]] = left_frame
+    
+    if crop:
+        stitched_image = auto_crop(mat=stitched_image)
 
     return stitched_image
