@@ -1,4 +1,4 @@
 videos
 .vscode
 **/__pycache__/
-tests
+main.py
