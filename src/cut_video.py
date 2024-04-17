@@ -12,7 +12,9 @@ logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(message)s', date
 
 def cut(input_video: str, output_video: str, t1: int = None, t2: int = None, clear: bool = True, log: bool = True) -> str:
 
-    if log:
+    if not log:
+        logging.disable(logging.CRITICAL)
+
         logging.info(f"Processing: {input_video}")
 
     # Disable moviepy command logs
@@ -38,7 +40,6 @@ def cut(input_video: str, output_video: str, t1: int = None, t2: int = None, cle
 
     ffmpeg_extract_subclip(filename=input_video, t1=t1, t2=t2, targetname=output_video)
 
-    if log:
-        logging.info(f"Done: {output_video}")
+    logging.info(f"Done: {output_video}")
 
     return output_video
