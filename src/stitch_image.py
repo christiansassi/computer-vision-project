@@ -156,7 +156,7 @@ def stitch_images(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMa
         # Finding matches between the 2 images and their keypoints
         matches, left_frame_keypoints, right_frame_keypoints = find_matches(left_frame=left_frame, right_frame=right_frame)
         
-        # Finding homography matrix.
+        # Finding homography matrix
         homography_matrix = find_homography(matches=matches, left_frame_keypoints=left_frame_keypoints, right_frame_keypoints=right_frame_keypoints)
         
         # Finding size of new frame of stitched images and updating the homography matrix
@@ -164,7 +164,7 @@ def stitch_images(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMa
 
         function.cache = new_frame_size, correction, homography_matrix
 
-    # Finally placing the images upon one another.
+    # Finally placing the images upon one another
     stitched_image = cv2.warpPerspective(right_frame, homography_matrix, (new_frame_size[1], new_frame_size[0]))
     stitched_image[correction[1]:correction[1]+left_frame.shape[0], correction[0]:correction[0]+left_frame.shape[1]] = left_frame
     
