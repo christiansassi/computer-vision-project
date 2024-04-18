@@ -40,12 +40,15 @@ if __name__ == "__main__":
     for video in videos:
         assert all(isfile(video) for video in videos), f"Unable to locate {video}"
         
+        value = 0.4
+    
         # We noticed that the 500th frame of the top view was the best one in terms of keypoints and descriptors.
         # We use it to cache the homography_matrix and the associated parameters in order to use them later
         if "top" in video:
             left_frame = cv2.imread(r"videos\ref\top_left.png")
             right_frame = cv2.imread(r"videos\ref\top_right.png")
-            stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame)
+            value = 0.4
+            stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value)
 
         # Open video
         video = cv2.VideoCapture(video)
@@ -65,7 +68,7 @@ if __name__ == "__main__":
             right_frame = frame[:, frame.shape[1]//2:]
 
             # Stitch frame
-            frame = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, clear_cache=False)
+            frame = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, clear_cache=False)
             frame = utils.auto_resize(mat=frame)
 
             # Display the processed frame

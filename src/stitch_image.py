@@ -36,7 +36,7 @@ def auto_crop(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat]) -> np.n
 
     return crop_mat
 
-def find_matches(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], value: float = 0.4, k: int = 2) -> tuple[list[list], tuple[cv2.KeyPoint], tuple[cv2.KeyPoint]]:
+def find_matches(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], value: float, k: int) -> tuple[list[list], tuple[cv2.KeyPoint], tuple[cv2.KeyPoint]]:
 
     # Copy the image
     _left_frame = left_frame.copy()
@@ -62,7 +62,7 @@ def find_matches(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat
 
     return final_matches, left_frame_keypoints, right_frame_keypoints
 
-def find_homography(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoint], right_frame_keypoints: tuple[cv2.KeyPoint], ransacReprojThreshold: float = 4) -> np.ndarray:
+def find_homography(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoint], right_frame_keypoints: tuple[cv2.KeyPoint], ransacReprojThreshold: float) -> np.ndarray:
 
     # Check if matches are more than 4
     assert len(matches) >= 4, "Not enough matches"
@@ -139,7 +139,7 @@ def get_new_frame_size_and_matrix(homography_matrix: np.ndarray, left_frame_shap
     
     return [new_height, new_width], correction, homography_matrix
 
-def stitch_images(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], crop: bool = True, clear_cache: bool = True) -> np.ndarray:
+def stitch_images(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], value: float, k: int = 2, ransacReprojThreshold: float = 4, crop: bool = True, clear_cache: bool = True) -> np.ndarray:
 
     function = eval(inspect.stack()[0][3])
 
@@ -154,10 +154,10 @@ def stitch_images(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMa
 
     if all(obj is None for obj in [new_frame_size, correction, homography_matrix]):
         # Finding matches between the 2 images and their keypoints
-        matches, left_frame_keypoints, right_frame_keypoints = find_matches(left_frame=left_frame, right_frame=right_frame)
+        matches, left_frame_keypoints, right_frame_keypoints = find_matches(left_frame=left_frame, right_frame=right_frame, value=value, k=k)
         
         # Finding homography matrix
-        homography_matrix = find_homography(matches=matches, left_frame_keypoints=left_frame_keypoints, right_frame_keypoints=right_frame_keypoints)
+        homography_matrix = find_homography(matches=matches, left_frame_keypoints=left_frame_keypoints, right_frame_keypoints=right_frame_keypoints, ransacReprojThreshold=ransacReprojThreshold)
         
         # Finding size of new frame of stitched images and updating the homography matrix
         new_frame_size, correction, homography_matrix = get_new_frame_size_and_matrix(homography_matrix, right_frame.shape[:2], left_frame.shape[:2])
