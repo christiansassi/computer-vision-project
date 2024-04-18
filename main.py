@@ -49,10 +49,10 @@ if __name__ == "__main__":
             div_right = params.TOP_DIV_RIGHT
 
             left_frame = cv2.imread(r"videos\ref\top_left.png")
-            _, left_field_mask = field_extraction.extract(mat=left_frame, side=field_extraction.Side.LEFT)
+            _, left_field_mask = field_extraction.extract(mat=left_frame, side=field_extraction.Side.LEFT, margin=params.MARGIN)
 
             right_frame = cv2.imread(r"videos\ref\top_right.png")
-            _, right_field_mask = field_extraction.extract(mat=right_frame, side=field_extraction.Side.RIGHT)
+            _, right_field_mask = field_extraction.extract(mat=right_frame, side=field_extraction.Side.RIGHT, margin=params.MARGIN)
 
             stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value)
 
@@ -65,6 +65,7 @@ if __name__ == "__main__":
             value = params.BOTTOM_VALUE
             div_left = params.BOTTOM_DIV_LEFT
             div_right = params.BOTTOM_DIV_RIGHT
+
 
         else:
             raise Exception("Unknwon video")

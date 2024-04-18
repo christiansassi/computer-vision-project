@@ -8,7 +8,7 @@ class Side(Enum):
     LEFT = 0
     RIGHT = -1
 
-def extract(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], side: Side, line_color: tuple[int, int, int] = (177, 63, 22), tolerance: int = 8) -> tuple[np.ndarray, np.ndarray]:
+def extract(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], side: Side, line_color: tuple[int, int, int] = (177, 63, 22), tolerance: int = 8, margin: int = 0) -> tuple[np.ndarray, np.ndarray]:
 
     # Copy the image
     _mat = mat.copy()
@@ -93,7 +93,12 @@ def extract(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], side: Sid
             if non_zero is None:
                 continue
 
-            mask[y, non_zero[0][0][1]:] = 255
+            mask[y, non_zero[0][0][1] - margin:] = 255
+
+            start = int(non_zero[0][0][1] - margin)
+            start = start if start >= 0 else 0
+
+            mask[y, start:] = 255
 
     else:
 
@@ -102,8 +107,25 @@ def extract(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], side: Sid
 
             if non_zero is None:
                 continue
+            
+            end = int(non_zero[-1][0][1] + margin)
+            end = end if end <= _mat.shape[1]-1 else _mat.shape[1]-1
 
-            mask[y, :non_zero[-1][0][1]+1] = 255
+            mask[y, :end+1] = 255
+
+    for x in range(0, _mat.shape[1]):
+        non_zero = cv2.findNonZero(_mat[:, x])
+
+        if non_zero is None:
+            continue
+        
+        start = int(non_zero[0][0][1] - margin)
+        start = start if start >= 0 else 0
+
+        end = int(non_zero[-1][0][1] + margin)
+        end = end if end <= _mat.shape[0]-1 else _mat.shape[0]-1
+
+        mask[start:end+1, x] = 255
 
     field = mat.copy()
     field[mask == False] = (0,0,0)
