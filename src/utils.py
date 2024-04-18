@@ -37,10 +37,8 @@ def show_img(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat, list[cv2.
 
     # Prepare image(s) and label(s)
     if not isinstance(mat, list):
-        assert isinstance(winname, str), "winname must be a string"
-
         mat = [mat]
-        winname = [winname]
+        winname = [str(winname)]
     
     else:
         if not isinstance(winname, list):
