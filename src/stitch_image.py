@@ -1,5 +1,5 @@
 import cv2
-import numpy as np      
+import numpy as np  
 
 from typing import Union
 import inspect
@@ -9,32 +9,44 @@ def auto_crop(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat]) -> np.n
     # Copy the image
     _mat = mat.copy()
 
-    _mat = cv2.cvtColor(src=_mat, code=cv2.COLOR_BGR2GRAY)
-    _, _mat = cv2.threshold(_mat, 1, 255, cv2.THRESH_BINARY)
+    # Get first left non black pixel
+    for x in range(0, _mat.shape[1]):
 
-    # Supposing that during stitching it is the right frame to be modified and not the left one
-    non_zero = cv2.findNonZero(_mat[:, 0])
-    y_top = non_zero[0][0][1]
-    y_bottom = non_zero[-1][0][1]
+        if np.all(_mat[:, x] == 0):
+            continue
+
+        left = x
+        break
     
-    _mat = _mat[y_top:y_bottom+1, :]
-
-    # Get first right column with all pixels different from 0
+    # Get first right non black pixel
     for x in range(_mat.shape[1]-1, -1, -1):
 
-        if np.count_nonzero(_mat[:, x]) != _mat.shape[0]:
+        if np.all(_mat[:, x] == 0):
             continue
 
         right = x
         break
+
+    # Get first top non black pixel
+    for y in range(0, _mat.shape[0]):
+
+        if np.all(_mat[y, :] == 0):
+            continue
+
+        top = y
+        break
     
-    _mat = _mat[:, :right+1]
+    # Get first bottom non black pixel
+    for y in range(_mat.shape[0]-1, -1, -1):
 
-    # Crop the original image
-    crop_mat = mat.copy()
-    crop_mat = crop_mat[y_top:y_bottom+1, :right+1]
+        if np.all(_mat[y, :] == 0):
+            continue
 
-    return crop_mat
+        bottom = y
+        break
+    
+    # Crop the image
+    return _mat[top:bottom+1, left:right+1]
 
 def find_matches(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], value: float, k: int) -> tuple[list[list], tuple[cv2.KeyPoint], tuple[cv2.KeyPoint]]:
 

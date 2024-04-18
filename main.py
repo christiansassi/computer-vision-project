@@ -7,6 +7,7 @@ from src import cut_video
 from src import stitch_image
 from src import utils
 from src import params
+from src import field_extraction
 
 if __name__ == "__main__":
 
@@ -39,16 +40,34 @@ if __name__ == "__main__":
     # Process each video
     for video in videos:
         assert all(isfile(video) for video in videos), f"Unable to locate {video}"
-        
-        value = 0.4
-    
+
         # We noticed that the 500th frame of the top view was the best one in terms of keypoints and descriptors.
         # We use it to cache the homography_matrix and the associated parameters in order to use them later
         if "top" in video:
+            value = params.TOP_VALUE
+            div_left = params.TOP_DIV_LEFT
+            div_right = params.TOP_DIV_RIGHT
+
             left_frame = cv2.imread(r"videos\ref\top_left.png")
+            _, left_field_mask = field_extraction.extract(mat=left_frame, side=field_extraction.Side.LEFT)
+
             right_frame = cv2.imread(r"videos\ref\top_right.png")
-            value = 0.4
+            _, right_field_mask = field_extraction.extract(mat=right_frame, side=field_extraction.Side.RIGHT)
+
             stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value)
+
+        elif "center" in video:
+            value = params.CENTER_VALUE
+            div_left = params.CENTER_DIV_LEFT
+            div_right = params.CENTER_DIV_RIGHT
+
+        elif "bottom" in video:
+            value = params.BOTTOM_VALUE
+            div_left = params.BOTTOM_DIV_LEFT
+            div_right = params.BOTTOM_DIV_RIGHT
+
+        else:
+            raise Exception("Unknwon video")
 
         # Open video
         video = cv2.VideoCapture(video)
@@ -63,9 +82,13 @@ if __name__ == "__main__":
                 break
             
             # Auto resize the extracted frame
-            frame = frame[:, params.DIV_LEFT:params.DIV_RIGHT+1]
+            frame = frame[:, div_left:div_right+1]
+
             left_frame = frame[:, 0:frame.shape[1]//2]
+            left_frame[left_field_mask == False] = (0,0,0)
+
             right_frame = frame[:, frame.shape[1]//2:]
+            right_frame[right_field_mask == False] = (0,0,0)
 
             # Stitch frame
             frame = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, clear_cache=False)
