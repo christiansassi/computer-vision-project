@@ -1,5 +1,5 @@
 from os import listdir, mkdir
-from os.path import join, exists, isfile
+from os.path import join, exists, isfile, basename
 
 import cv2
 
@@ -14,7 +14,7 @@ if __name__ == "__main__":
     #? Cut video (just once)
 
     # Check if cut videos already exist. If not create the workspace
-    cut_videos_folder = r"videos\cut"
+    cut_videos_folder = params.CUT_VIDEOS_FOLDER
 
     if exists(cut_videos_folder):
         cut_videos = [join(cut_videos_folder, f) for f in listdir(cut_videos_folder) if f.endswith(".mp4")]
@@ -23,7 +23,7 @@ if __name__ == "__main__":
         cut_videos = []
 
     if not len(cut_videos):
-        original_video_folder = r"videos\original"
+        original_video_folder = params.ORIGINAL_VIDEOS_FOLDER
         original_videos = [f for f in listdir(original_video_folder) if f.endswith(".mp4")]
 
         for input_video in original_videos:
@@ -36,44 +36,63 @@ if __name__ == "__main__":
         videos = cut_videos
 
     #? Stitch video
+    processed_videos_folder = params.PROCESSED_VIDEOS_FOLDER
+
+    if not exists(processed_videos_folder):
+        mkdir(processed_videos_folder)
 
     # Process each video
     for video in videos:
         assert all(isfile(video) for video in videos), f"Unable to locate {video}"
+        
+        # Save the video name for later
+        video_name = basename(video)
 
-        # We noticed that the 500th frame of the top view was the best one in terms of keypoints and descriptors.
-        # We use it to cache the homography_matrix and the associated parameters in order to use them later
+        # Some frames give best keypoints and descriptors.
+        # We use one of them to cache the homography_matrix and the associated parameters in order to use them later
         if "top" in video:
             value = params.TOP_VALUE
             div_left = params.TOP_DIV_LEFT
             div_right = params.TOP_DIV_RIGHT
-
-            left_frame = cv2.imread(r"videos\ref\top_left.png")
-            _, left_field_mask = field_extraction.extract(mat=left_frame, side=field_extraction.Side.LEFT, margin=params.MARGIN)
-
-            right_frame = cv2.imread(r"videos\ref\top_right.png")
-            _, right_field_mask = field_extraction.extract(mat=right_frame, side=field_extraction.Side.RIGHT, margin=params.MARGIN)
-
-            stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value)
+            ref_frame = params.REF_FRAME_TOP
 
         elif "center" in video:
             value = params.CENTER_VALUE
             div_left = params.CENTER_DIV_LEFT
             div_right = params.CENTER_DIV_RIGHT
+            ref_frame = params.REF_FRAME_CENTER
 
         elif "bottom" in video:
             value = params.BOTTOM_VALUE
             div_left = params.BOTTOM_DIV_LEFT
             div_right = params.BOTTOM_DIV_RIGHT
-
+            ref_frame = params.REF_FRAME_BOTTOM
 
         else:
             raise Exception("Unknwon video")
 
         # Open video
         video = cv2.VideoCapture(video)
-
         assert video.isOpened(), "An error occours while reading the video"
+
+        # Pre-process the selected frame and cache the results
+        video.set(cv2.CAP_PROP_POS_FRAMES, ref_frame)
+
+        _, frame = video.read()
+        frame = frame[:, div_left:div_right+1]
+
+        left_frame = frame[:, 0:frame.shape[1]//2]
+        _, left_field_mask = field_extraction.extract(mat=left_frame, side=field_extraction.Side.LEFT, margin=params.MARGIN)
+
+        right_frame = frame[:, frame.shape[1]//2:]
+        _, right_field_mask = field_extraction.extract(mat=right_frame, side=field_extraction.Side.RIGHT, margin=params.MARGIN)
+
+        stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value)
+
+        video.set(cv2.CAP_PROP_POS_FRAMES, 0)
+
+        frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT)) if params.FRAMES_DEMO is None else params.FRAMES_DEMO
+        processed_frames = []
 
         while True:
 
@@ -81,7 +100,7 @@ if __name__ == "__main__":
 
             if not success:
                 break
-            
+
             # Auto resize the extracted frame
             frame = frame[:, div_left:div_right+1]
 
@@ -95,13 +114,44 @@ if __name__ == "__main__":
             frame = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, clear_cache=False)
             frame = utils.auto_resize(mat=frame)
 
-            # Display the processed frame
-            cv2.imshow("", frame)
+            processed_frames.append(frame)
 
-            if cv2.waitKey(25) & 0xFF == ord("q"):
+            print(f"Processing {video_name}: {int(len(processed_frames) * 100 / frames)}% ({len(processed_frames)} / {frames})", end="\r")
+
+            if len(processed_frames) == frames:
                 break
 
-        cv2.destroyAllWindows()
+            # Display the processed frame
+            # frame = utils.auto_resize(mat=frame)
+            # cv2.imshow("", frame)
+
+            # if cv2.waitKey(25) & 0xFF == ord("q"):
+            #     break
+
+        #cv2.destroyAllWindows()
+        print("")
+
+        output_video = join(processed_videos_folder, video_name)
+
+        print(f"Saving {video_name} to {output_video}...",end="")
+
+        # Save the processed video
+        frame_height, frame_width, _ = processed_frames[0].shape
+
+        #TODO FIX
+        # Define the codec and create VideoWriter object
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        out = cv2.VideoWriter(output_video, fourcc, 60, (frame_width, frame_height))
+
+        # Write frames to the video
+        for frame in processed_frames:
+            out.write(frame)
+
+        # Release the VideoWriter object
+        out.release()
+
+        print("DONE")
+
 
     #? Detection
 
