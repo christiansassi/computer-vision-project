@@ -58,7 +58,7 @@ def show_img(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat, list[cv2.
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-def extract_frame(video: cv2.VideoCapture, div_left: int, div_right: int, frame_number: int = 500) -> np.ndarray:
+def extract_frame(video: cv2.VideoCapture, div_left: int, div_right: int, frame_number: int = 500) -> tuple[np.ndarray, np.ndarray]:
     video = cv2.VideoCapture(video)
     assert video.isOpened(), "An error occours while reading the video"
 
