@@ -19,7 +19,7 @@ REF_FRAME_CENTER = 500 # Reference for center frame
 
 MARGIN = 100 # Margin volleyball field
 
-FRAMES_DEMO = 30 # Limit for demo test. None = no demo
+FRAMES_DEMO = None # Limit for demo test. None = no demo
 
 #? USER
 
