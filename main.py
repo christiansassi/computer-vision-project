@@ -9,9 +9,7 @@ from src import utils
 from src import params
 from src import field_extraction
 
-if __name__ == "__main__":
-
-    #? Cut video (just once)
+def _cut_video() -> list[str]:
 
     # Check if cut videos already exist. If not create the workspace
     cut_videos_folder = params.CUT_VIDEOS_FOLDER
@@ -34,8 +32,11 @@ if __name__ == "__main__":
             videos = cut_video.cut(input_video=input_video, output_video=output_video, t1=30)
     else:
         videos = cut_videos
+    
+    return videos
 
-    #? Stitch video
+def _stitch_video(videos: list[str]) -> None:
+
     processed_videos_folder = params.PROCESSED_VIDEOS_FOLDER
 
     if not exists(processed_videos_folder):
@@ -132,7 +133,7 @@ if __name__ == "__main__":
         #cv2.destroyAllWindows()
         print("")
 
-        output_video = f'{"".join(join(processed_videos_folder, video_name).split(".")[:-1])}.avi'
+        output_video = join(processed_videos_folder, video_name)
 
         print(f"Saving {video_name} to {output_video}...",end="")
 
@@ -140,7 +141,7 @@ if __name__ == "__main__":
         frame_height, frame_width, _ = processed_frames[0].shape
 
         # Define the codec and create VideoWriter object
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         out = cv2.VideoWriter(output_video, fourcc, fps, (frame_width, frame_height))
 
         # Write frames to the video
@@ -152,6 +153,13 @@ if __name__ == "__main__":
 
         print("DONE")
 
+if __name__ == "__main__":
+
+    #? Cut video (just once)
+    videos = _cut_video()
+
+    #? Stitch video
+    _stitch_video(videos=videos)
 
     #? Detection
 
