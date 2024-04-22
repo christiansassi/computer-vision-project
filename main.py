@@ -92,6 +92,7 @@ if __name__ == "__main__":
         video.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
         frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT)) if params.FRAMES_DEMO is None else params.FRAMES_DEMO
+        fps = int(video.get(cv2.CAP_PROP_FPS))
         processed_frames = []
 
         while True:
@@ -131,17 +132,16 @@ if __name__ == "__main__":
         #cv2.destroyAllWindows()
         print("")
 
-        output_video = join(processed_videos_folder, video_name)
+        output_video = f'{"".join(join(processed_videos_folder, video_name).split(".")[:-1])}.avi'
 
         print(f"Saving {video_name} to {output_video}...",end="")
 
         # Save the processed video
         frame_height, frame_width, _ = processed_frames[0].shape
 
-        #TODO FIX
         # Define the codec and create VideoWriter object
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        out = cv2.VideoWriter(output_video, fourcc, 60, (frame_width, frame_height))
+        out = cv2.VideoWriter(output_video, fourcc, fps, (frame_width, frame_height))
 
         # Write frames to the video
         for frame in processed_frames:
