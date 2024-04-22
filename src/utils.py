@@ -57,3 +57,20 @@ def show_img(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat, list[cv2.
 
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
+def extract_frame(video: cv2.VideoCapture, div_left: int, div_right: int, frame_number: int = 500) -> np.ndarray:
+    video = cv2.VideoCapture(video)
+    assert video.isOpened(), "An error occours while reading the video"
+
+    video.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+    ret, frame = video.read()
+
+    if ret:
+        frame = frame[:, div_left:div_right+1]
+
+        left_frame = frame[:, 0:frame.shape[1]//2]
+        right_frame = frame[:, frame.shape[1]//2:]
+    else:
+        raise Exception("Could not extract frame")
+    
+    return left_frame, right_frame

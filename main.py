@@ -55,38 +55,32 @@ def _stitch_video(videos: list[str]) -> None:
             value = params.TOP_VALUE
             div_left = params.TOP_DIV_LEFT
             div_right = params.TOP_DIV_RIGHT
-            ref_frame = params.REF_FRAME_TOP
+            frame_number = params.FRAME_NUMBER_TOP
 
         elif "center" in video:
             value = params.CENTER_VALUE
             div_left = params.CENTER_DIV_LEFT
             div_right = params.CENTER_DIV_RIGHT
-            ref_frame = params.REF_FRAME_CENTER
+            frame_number = params.FRAME_NUMBER_CENTER
 
         elif "bottom" in video:
             value = params.BOTTOM_VALUE
             div_left = params.BOTTOM_DIV_LEFT
             div_right = params.BOTTOM_DIV_RIGHT
-            ref_frame = params.REF_FRAME_BOTTOM
+            frame_number = params.FRAME_NUMBER_BOTTOM
 
         else:
             raise Exception("Unknwon video")
+
+        # Pre-process the selected frame and cache the results
+        left_frame, right_frame = utils.extract_frame(video=video, div_left=div_left, div_right=div_right, frame_number=frame_number)
 
         # Open video
         video = cv2.VideoCapture(video)
         assert video.isOpened(), "An error occours while reading the video"
 
-        # Pre-process the selected frame and cache the results
-        video.set(cv2.CAP_PROP_POS_FRAMES, ref_frame)
-
-        _, frame = video.read()
-        frame = frame[:, div_left:div_right+1]
-
-        left_frame = frame[:, 0:frame.shape[1]//2]
-        _, left_field_mask = field_extraction.extract(mat=left_frame, side=field_extraction.Side.LEFT, margin=params.MARGIN)
-
-        right_frame = frame[:, frame.shape[1]//2:]
         _, right_field_mask = field_extraction.extract(mat=right_frame, side=field_extraction.Side.RIGHT, margin=params.MARGIN)
+        _, left_field_mask = field_extraction.extract(mat=left_frame, side=field_extraction.Side.LEFT, margin=params.MARGIN)
 
         stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value)
 
@@ -107,10 +101,10 @@ def _stitch_video(videos: list[str]) -> None:
             frame = frame[:, div_left:div_right+1]
 
             left_frame = frame[:, 0:frame.shape[1]//2]
-            left_frame[left_field_mask == False] = (0,0,0)
+            # left_frame[left_field_mask == False] = (0,0,0)
 
             right_frame = frame[:, frame.shape[1]//2:]
-            right_frame[right_field_mask == False] = (0,0,0)
+            # right_frame[right_field_mask == False] = (0,0,0)
 
             # Stitch frame
             frame = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, clear_cache=False)
@@ -124,13 +118,13 @@ def _stitch_video(videos: list[str]) -> None:
                 break
 
             # Display the processed frame
-            # frame = utils.auto_resize(mat=frame)
-            # cv2.imshow("", frame)
+            frame = utils.auto_resize(mat=frame)
+            cv2.imshow("", frame)
 
-            # if cv2.waitKey(25) & 0xFF == ord("q"):
-            #     break
+            if cv2.waitKey(25) & 0xFF == ord("q"):
+                break
 
-        #cv2.destroyAllWindows()
+        cv2.destroyAllWindows()
         print("")
 
         output_video = join(processed_videos_folder, video_name)
