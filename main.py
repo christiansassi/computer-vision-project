@@ -77,7 +77,7 @@ def _stitch_video(videos: list[str]) -> None:
             raise Exception("Unknwon video")
 
         # Pre-process the selected frame and cache the results
-        left_frame, right_frame = utils.extract_frame(video=video, div_left=div_left, div_right=div_right, frame_number=120)
+        left_frame, right_frame = utils.extract_frame(video=video, div_left=div_left, div_right=div_right, frame_number=frame_number)
         lf = left_frame.copy()
         rf = right_frame.copy()
 
@@ -90,20 +90,13 @@ def _stitch_video(videos: list[str]) -> None:
         # _, right_field_mask = field_extraction.extract(mat=right_frame, side=field_extraction.Side.RIGHT, margin=params.MARGIN)
         # _, left_field_mask = field_extraction.extract(mat=left_frame, side=field_extraction.Side.LEFT, margin=params.MARGIN)
 
-        value = 0.99
         _, frame_matches = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value)
         frame_matches = utils.auto_resize(mat=frame_matches, ratio=1.5)
-        cv2.imshow(f"Matches_{video_name}", frame_matches)
-        cv2.imwrite(f"videos/matches/matches_{video_name}.jpg", frame_matches)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        utils.show_img(frame_matches, f"Matches_{video_name}")
 
         frame, _ = stitch_image.stitch_images(left_frame=lf, right_frame=rf, value=value, clear_cache=False, f_matches=False)
         frame = utils.auto_resize(mat=frame, ratio=1.5)
-        cv2.imshow("Frame", frame)
-        cv2.imwrite(f"videos/matches/frame_{video_name}.jpg", frame)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        utils.show_img(frame, "Frame")
 
         video.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
