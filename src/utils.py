@@ -75,23 +75,23 @@ def extract_frame(video: cv2.VideoCapture, div_left: int, div_right: int, frame_
     
     return left_frame, right_frame
 
-def bb_on_image(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], w: int = 750, h: int = None) -> tuple[np.ndarray, np.ndarray]:
+def bb_on_image(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], width: int = 750, height: int = None) -> tuple[np.ndarray, np.ndarray]:
 
     # Adjust width and height if needed
-    if w > left_frame.shape[1]:
-        w = left_frame.shape[1]
+    if width > left_frame.shape[1]:
+        width = left_frame.shape[1]
 
-    if h is None or h > left_frame.shape[0]:
-        h = left_frame.shape[0]
+    if height is None or height > left_frame.shape[0]:
+        height = left_frame.shape[0]
     
     # Left frame
     x, y = 0, 0 
     black_box = np.zeros_like(left_frame)
-    left_frame[y:y+h, x:x+w] = black_box[y:y+h, x:x+w]
+    left_frame[y:y+height, x:x+width] = black_box[y:y+height, x:x+width]
     
     # Right frame
-    x, y = right_frame.shape[1]-h, 0
+    x, y = right_frame.shape[1]-height, 0
     black_box = np.zeros_like(right_frame)
-    right_frame[y:y+h, x:x+w] = black_box[y:y+h, x:x+w]
+    right_frame[y:y+height, x:x+width] = black_box[y:y+height, x:x+width]
 
     return left_frame, right_frame
