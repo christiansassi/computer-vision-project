@@ -75,7 +75,7 @@ def extract_frame(video: cv2.VideoCapture, div_left: int, div_right: int, frame_
     
     return left_frame, right_frame
 
-def bb_on_image(left_frame:Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame:Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat]) -> tuple[np.ndarray, np.ndarray]:
+def bb_on_image(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat]) -> tuple[np.ndarray, np.ndarray]:
     x_spacing = 750
     w, h = x_spacing, left_frame.shape[0]
     
