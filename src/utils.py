@@ -74,3 +74,19 @@ def extract_frame(video: cv2.VideoCapture, div_left: int, div_right: int, frame_
         raise Exception("Could not extract frame")
     
     return left_frame, right_frame
+
+def bb_on_image(left_frame:Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame:Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat]) -> tuple[np.ndarray, np.ndarray]:
+    x_spacing = 750
+    w, h = x_spacing, left_frame.shape[0]
+    
+    # Left frame
+    x, y = 0, 0 
+    black_box = np.zeros_like(left_frame)
+    left_frame[y:y+h, x:x+w] = black_box[y:y+h, x:x+w]
+    
+    # Right frame
+    x, y = right_frame.shape[1]-x_spacing, 0
+    black_box = np.zeros_like(right_frame)
+    right_frame[y:y+h, x:x+w] = black_box[y:y+h, x:x+w]
+
+    return left_frame, right_frame

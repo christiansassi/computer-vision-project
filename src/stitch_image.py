@@ -1,6 +1,6 @@
 import cv2
 import numpy as np  
-
+import math
 from typing import Union
 import inspect
 
@@ -84,15 +84,16 @@ def find_homography(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoin
     right_frame_pts = []
 
     for match in matches:
-        left_frame_pts.append(left_frame_keypoints[match[0].queryIdx].pt)
-        right_frame_pts.append(right_frame_keypoints[match[0].trainIdx].pt)
+        if match != None:
+            left_frame_pts.append(left_frame_keypoints[match[0].queryIdx].pt)
+            right_frame_pts.append(right_frame_keypoints[match[0].trainIdx].pt)
 
     # Changing the datatype to "float32" for finding homography
     left_frame_pts = np.float32(left_frame_pts)
     right_frame_pts = np.float32(right_frame_pts)
 
     # Finding the homography matrix(transformation matrix).
-    homography_matrix, _ = cv2.findHomography(srcPoints=right_frame_pts, dstPoints=left_frame_pts, method=cv2.RANSAC, ransacReprojThreshold=ransacReprojThreshold)
+    homography_matrix, _ = cv2.findHomography(srcPoints=right_frame_pts, dstPoints=left_frame_pts, method=cv2.LMEDS, ransacReprojThreshold=ransacReprojThreshold)
 
     return homography_matrix
     
@@ -151,7 +152,7 @@ def get_new_frame_size_and_matrix(homography_matrix: np.ndarray, left_frame_shap
     
     return [new_height, new_width], correction, homography_matrix
 
-def stitch_images(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], value: float, k: int = 2, ransacReprojThreshold: float = 4, crop: bool = True, clear_cache: bool = True) -> np.ndarray:
+def stitch_images(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], value: float, k: int = 2, ransacReprojThreshold: float = 4, crop: bool = True, clear_cache: bool = True, f_matches = True) -> np.ndarray:
 
     function = eval(inspect.stack()[0][3])
 
@@ -168,6 +169,20 @@ def stitch_images(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMa
         # Finding matches between the 2 images and their keypoints
         matches, left_frame_keypoints, right_frame_keypoints = find_matches(left_frame=left_frame, right_frame=right_frame, value=value, k=k)
         
+        max_angle = 2
+        for m in range(len(matches)):
+            fp_x, fp_y = left_frame_keypoints[matches[m][0].queryIdx].pt
+            sp_x, sp_y = right_frame_keypoints[matches[m][0].trainIdx].pt
+
+            inclination = math.degrees(math.atan((sp_y-fp_y)/(sp_x-fp_x)))
+            distance = matches[m][0].distance
+            
+            if abs(inclination)>max_angle: 
+                matches[m] = None
+                print(f"Match {m} with inclination: {inclination} and distance {distance} [REMOVED]")
+            else:
+                print(f"Match {m} with inclination: {inclination} and distance {distance}")
+        
         # Finding homography matrix
         homography_matrix = find_homography(matches=matches, left_frame_keypoints=left_frame_keypoints, right_frame_keypoints=right_frame_keypoints, ransacReprojThreshold=ransacReprojThreshold)
         
@@ -180,8 +195,14 @@ def stitch_images(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMa
     stitched_image = cv2.warpPerspective(right_frame, homography_matrix, (new_frame_size[1], new_frame_size[0]))
     stitched_image[correction[1]:correction[1]+left_frame.shape[0], correction[0]:correction[0]+left_frame.shape[1]] = left_frame
     
+    frame_matches = None
+    if f_matches:
+        frame_matches = cv2.drawMatchesKnn(left_frame, left_frame_keypoints, right_frame, right_frame_keypoints, matches, None, 
+                                    flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS, 
+                                    matchColor=(0, 0, 255), singlePointColor=(0, 255, 255))
+    
     # Crop the image if specified
     if crop:
         stitched_image = auto_crop(mat=stitched_image)
 
-    return stitched_image
+    return stitched_image, frame_matches

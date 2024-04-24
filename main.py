@@ -2,6 +2,7 @@ from os import listdir, mkdir
 from os.path import join, exists, isfile, basename
 
 import cv2
+import numpy as np
 
 from src import cut_video
 from src import stitch_image
@@ -43,7 +44,7 @@ def _stitch_video(videos: list[str]) -> None:
         mkdir(processed_videos_folder)
 
     # Process each video
-    for video in videos:
+    for video in sorted(videos):
         assert all(isfile(video) for video in videos), f"Unable to locate {video}"
         
         # Save the video name for later
@@ -56,33 +57,53 @@ def _stitch_video(videos: list[str]) -> None:
             div_left = params.TOP_DIV_LEFT
             div_right = params.TOP_DIV_RIGHT
             frame_number = params.FRAME_NUMBER_TOP
+            video_name = "top"
 
         elif "center" in video:
             value = params.CENTER_VALUE
             div_left = params.CENTER_DIV_LEFT
             div_right = params.CENTER_DIV_RIGHT
             frame_number = params.FRAME_NUMBER_CENTER
+            video_name = "center"
 
         elif "bottom" in video:
             value = params.BOTTOM_VALUE
             div_left = params.BOTTOM_DIV_LEFT
             div_right = params.BOTTOM_DIV_RIGHT
             frame_number = params.FRAME_NUMBER_BOTTOM
+            video_name = "bottom"
 
         else:
             raise Exception("Unknwon video")
 
         # Pre-process the selected frame and cache the results
-        left_frame, right_frame = utils.extract_frame(video=video, div_left=div_left, div_right=div_right, frame_number=frame_number)
+        left_frame, right_frame = utils.extract_frame(video=video, div_left=div_left, div_right=div_right, frame_number=120)
+        lf = left_frame.copy()
+        rf = right_frame.copy()
+
+        left_frame, right_frame = utils.bb_on_image(left_frame=left_frame, right_frame=right_frame)
 
         # Open video
         video = cv2.VideoCapture(video)
         assert video.isOpened(), "An error occours while reading the video"
 
-        _, right_field_mask = field_extraction.extract(mat=right_frame, side=field_extraction.Side.RIGHT, margin=params.MARGIN)
-        _, left_field_mask = field_extraction.extract(mat=left_frame, side=field_extraction.Side.LEFT, margin=params.MARGIN)
+        # _, right_field_mask = field_extraction.extract(mat=right_frame, side=field_extraction.Side.RIGHT, margin=params.MARGIN)
+        # _, left_field_mask = field_extraction.extract(mat=left_frame, side=field_extraction.Side.LEFT, margin=params.MARGIN)
 
-        stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value)
+        value = 0.99
+        _, frame_matches = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value)
+        frame_matches = utils.auto_resize(mat=frame_matches, ratio=1.5)
+        cv2.imshow(f"Matches_{video_name}", frame_matches)
+        cv2.imwrite(f"videos/matches/matches_{video_name}.jpg", frame_matches)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+        frame, _ = stitch_image.stitch_images(left_frame=lf, right_frame=rf, value=value, clear_cache=False, f_matches=False)
+        frame = utils.auto_resize(mat=frame, ratio=1.5)
+        cv2.imshow("Frame", frame)
+        cv2.imwrite(f"videos/matches/frame_{video_name}.jpg", frame)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
         video.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
@@ -107,7 +128,7 @@ def _stitch_video(videos: list[str]) -> None:
             # right_frame[right_field_mask == False] = (0,0,0)
 
             # Stitch frame
-            frame = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, clear_cache=False)
+            frame, _ = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, clear_cache=False, f_matches=False)
             frame = utils.auto_resize(mat=frame)
 
             processed_frames.append(frame)
@@ -118,7 +139,7 @@ def _stitch_video(videos: list[str]) -> None:
                 break
 
             # Display the processed frame
-            frame = utils.auto_resize(mat=frame)
+            frame = utils.auto_resize(mat=frame, ratio=1.5)
             cv2.imshow("", frame)
 
             if cv2.waitKey(25) & 0xFF == ord("q"):
@@ -144,6 +165,7 @@ def _stitch_video(videos: list[str]) -> None:
 
         # Release the VideoWriter object
         out.release()
+        video.release()
 
         print("DONE")
 
