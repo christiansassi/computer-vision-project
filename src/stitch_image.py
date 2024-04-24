@@ -1,8 +1,11 @@
 import cv2
 import numpy as np  
 import math
+
 from typing import Union
 import inspect
+
+import logging
 
 def auto_crop(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat]) -> np.ndarray:
 
@@ -48,7 +51,31 @@ def auto_crop(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat]) -> np.n
     # Crop the image
     return _mat[top:bottom+1, left:right+1]
 
-def find_matches(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], value: float, k: int) -> tuple[list[list], tuple[cv2.KeyPoint], tuple[cv2.KeyPoint]]:
+def filter_matches(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoint], right_frame_keypoints: tuple[cv2.KeyPoint], value: float = 0.99, angle: float = 2) -> list:
+
+    filtered_matches = []
+
+    # Applying ratio test and filtering out the good matches
+    matches = [[match1] for match1, match2 in matches if match1.distance < value * match2.distance]
+
+    # Filter matches based on angles
+    for index, match in enumerate(matches):
+        fp_x, fp_y = left_frame_keypoints[match[0].queryIdx].pt
+        sp_x, sp_y = right_frame_keypoints[match[0].trainIdx].pt
+
+        inclination = math.degrees(math.atan((sp_y-fp_y)/(sp_x-fp_x)))
+        distance = match[0].distance
+        
+        if abs(inclination) > angle: 
+            logging.debug(f"Match {index} with inclination: {inclination} and distance {distance} [REMOVED]\n")
+            continue
+
+        filtered_matches.append(match)
+        logging.debug(f"Match {index} with inclination: {inclination} and distance {distance}\n")
+    
+    return filtered_matches
+
+def find_matches(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], k: int) -> tuple[list[list], tuple[cv2.KeyPoint], tuple[cv2.KeyPoint]]:
 
     # Copy the image
     _left_frame = left_frame.copy()
@@ -67,12 +94,9 @@ def find_matches(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat
 
     # Using Brute Force matcher to find matches
     bf_matcher = cv2.BFMatcher()
-    initial_matches = bf_matcher.knnMatch(queryDescriptors=left_frame_descriptors, trainDescriptors=right_frame_descriptors, k=k)
+    matches = bf_matcher.knnMatch(queryDescriptors=left_frame_descriptors, trainDescriptors=right_frame_descriptors, k=k)
 
-    # Applying ratio test and filtering out the good matches
-    final_matches = [[match1] for match1, match2 in initial_matches if match1.distance < value * match2.distance]
-
-    return final_matches, left_frame_keypoints, right_frame_keypoints
+    return matches, left_frame_keypoints, right_frame_keypoints
 
 def find_homography(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoint], right_frame_keypoints: tuple[cv2.KeyPoint], ransacReprojThreshold: float) -> np.ndarray:
 
@@ -84,9 +108,8 @@ def find_homography(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoin
     right_frame_pts = []
 
     for match in matches:
-        if match != None:
-            left_frame_pts.append(left_frame_keypoints[match[0].queryIdx].pt)
-            right_frame_pts.append(right_frame_keypoints[match[0].trainIdx].pt)
+        left_frame_pts.append(left_frame_keypoints[match[0].queryIdx].pt)
+        right_frame_pts.append(right_frame_keypoints[match[0].trainIdx].pt)
 
     # Changing the datatype to "float32" for finding homography
     left_frame_pts = np.float32(left_frame_pts)
@@ -152,8 +175,9 @@ def get_new_frame_size_and_matrix(homography_matrix: np.ndarray, left_frame_shap
     
     return [new_height, new_width], correction, homography_matrix
 
-def stitch_images(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], value: float, k: int = 2, ransacReprojThreshold: float = 4, crop: bool = True, clear_cache: bool = True, f_matches = True) -> np.ndarray:
+def stitch_images(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], value: float, angle: float, k: int = 2, ransacReprojThreshold: float = 4, crop: bool = True, clear_cache: bool = True, f_matches: bool = True) -> tuple[np.ndarray, Union[np.ndarray, None]]:
 
+    # Cache
     function = eval(inspect.stack()[0][3])
 
     try:
@@ -165,23 +189,14 @@ def stitch_images(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMa
     except:
         new_frame_size, correction, homography_matrix = None, None, None
 
+    # If no cache or clear_cache is set to True, recalculate everything
     if all(obj is None for obj in [new_frame_size, correction, homography_matrix]):
-        # Finding matches between the 2 images and their keypoints
-        matches, left_frame_keypoints, right_frame_keypoints = find_matches(left_frame=left_frame, right_frame=right_frame, value=value, k=k)
-        
-        max_angle = 2
-        for m in range(len(matches)):
-            fp_x, fp_y = left_frame_keypoints[matches[m][0].queryIdx].pt
-            sp_x, sp_y = right_frame_keypoints[matches[m][0].trainIdx].pt
 
-            inclination = math.degrees(math.atan((sp_y-fp_y)/(sp_x-fp_x)))
-            distance = matches[m][0].distance
-            
-            if abs(inclination)>max_angle: 
-                matches[m] = None
-                print(f"Match {m} with inclination: {inclination} and distance {distance} [REMOVED]")
-            else:
-                print(f"Match {m} with inclination: {inclination} and distance {distance}")
+        # Finding matches between the 2 images and their keypoints
+        matches, left_frame_keypoints, right_frame_keypoints = find_matches(left_frame=left_frame, right_frame=right_frame, k=k)
+        
+        # Filter matches
+        matches = filter_matches(matches=matches, left_frame_keypoints=left_frame_keypoints, right_frame_keypoints=right_frame_keypoints, value=value, angle=angle)
         
         # Finding homography matrix
         homography_matrix = find_homography(matches=matches, left_frame_keypoints=left_frame_keypoints, right_frame_keypoints=right_frame_keypoints, ransacReprojThreshold=ransacReprojThreshold)
@@ -195,13 +210,15 @@ def stitch_images(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMa
     stitched_image = cv2.warpPerspective(right_frame, homography_matrix, (new_frame_size[1], new_frame_size[0]))
     stitched_image[correction[1]:correction[1]+left_frame.shape[0], correction[0]:correction[0]+left_frame.shape[1]] = left_frame
     
-    frame_matches = None
+    # If specified, draw matches
     if f_matches:
         frame_matches = cv2.drawMatchesKnn(left_frame, left_frame_keypoints, right_frame, right_frame_keypoints, matches, None, 
-                                    flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS, 
-                                    matchColor=(0, 0, 255), singlePointColor=(0, 255, 255))
-    
-    # Crop the image if specified
+            flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS, 
+            matchColor=(0, 0, 255), singlePointColor=(0, 255, 255))
+    else:
+        frame_matches = None
+
+    # If specified, crop the image
     if crop:
         stitched_image = auto_crop(mat=stitched_image)
 

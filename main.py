@@ -1,14 +1,21 @@
 from os import listdir, mkdir
 from os.path import join, exists, isfile, basename
+import sys
+
+import logging
 
 import cv2
-import numpy as np
 
 from src import cut_video
 from src import stitch_image
 from src import utils
 from src import params
 from src import field_extraction
+
+from . import wrapped_logging_handler
+
+# Levels used: DEBUG, INFO
+logger = logging.getLogger()
 
 def _cut_video() -> list[str]:
 
@@ -36,7 +43,7 @@ def _cut_video() -> list[str]:
     
     return videos
 
-def _stitch_video(videos: list[str]) -> None:
+def _stitch_video(videos: list[str], live: bool = True) -> None:
 
     processed_videos_folder = params.PROCESSED_VIDEOS_FOLDER
 
@@ -54,49 +61,31 @@ def _stitch_video(videos: list[str]) -> None:
         # We use one of them to cache the homography_matrix and the associated parameters in order to use them later
         if "top" in video:
             value = params.TOP_VALUE
+            angle = params.TOP_ANGLE
             div_left = params.TOP_DIV_LEFT
             div_right = params.TOP_DIV_RIGHT
             frame_number = params.FRAME_NUMBER_TOP
-            video_name = "top"
 
         elif "center" in video:
             value = params.CENTER_VALUE
+            angle = params.CENTER_ANGLE
             div_left = params.CENTER_DIV_LEFT
             div_right = params.CENTER_DIV_RIGHT
             frame_number = params.FRAME_NUMBER_CENTER
-            video_name = "center"
 
         elif "bottom" in video:
             value = params.BOTTOM_VALUE
+            angle = params.BOTTOM_ANGLE
             div_left = params.BOTTOM_DIV_LEFT
             div_right = params.BOTTOM_DIV_RIGHT
             frame_number = params.FRAME_NUMBER_BOTTOM
-            video_name = "bottom"
 
         else:
             raise Exception("Unknwon video")
 
-        # Pre-process the selected frame and cache the results
-        left_frame, right_frame = utils.extract_frame(video=video, div_left=div_left, div_right=div_right, frame_number=frame_number)
-        lf = left_frame.copy()
-        rf = right_frame.copy()
-
-        left_frame, right_frame = utils.bb_on_image(left_frame=left_frame, right_frame=right_frame)
-
         # Open video
         video = cv2.VideoCapture(video)
         assert video.isOpened(), "An error occours while reading the video"
-
-        # _, right_field_mask = field_extraction.extract(mat=right_frame, side=field_extraction.Side.RIGHT, margin=params.MARGIN)
-        # _, left_field_mask = field_extraction.extract(mat=left_frame, side=field_extraction.Side.LEFT, margin=params.MARGIN)
-
-        _, frame_matches = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value)
-        frame_matches = utils.auto_resize(mat=frame_matches, ratio=1.5)
-        utils.show_img(frame_matches, f"Matches_{video_name}")
-
-        frame, _ = stitch_image.stitch_images(left_frame=lf, right_frame=rf, value=value, clear_cache=False, f_matches=False)
-        frame = utils.auto_resize(mat=frame, ratio=1.5)
-        utils.show_img(frame, "Frame")
 
         video.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
@@ -105,45 +94,45 @@ def _stitch_video(videos: list[str]) -> None:
         processed_frames = []
 
         while True:
-
+            
+            # Extract frame by frame
             success, frame = video.read()
 
             if not success:
                 break
 
-            # Auto resize the extracted frame
             frame = frame[:, div_left:div_right+1]
-
             left_frame = frame[:, 0:frame.shape[1]//2]
-            # left_frame[left_field_mask == False] = (0,0,0)
-
             right_frame = frame[:, frame.shape[1]//2:]
-            # right_frame[right_field_mask == False] = (0,0,0)
 
             # Stitch frame
-            frame, _ = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, clear_cache=False, f_matches=False)
+            frame, _ = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle, clear_cache=False, f_matches=False)
+
+            # Auto resize the extracted frame
             frame = utils.auto_resize(mat=frame)
 
+            if live:
+                # Display the processed frame
+                cv2.imshow(winname="", mat=frame)
+
+                if cv2.waitKey(25) & 0xFF == ord("q"):
+                    break
+
+            # Save the processed frame
             processed_frames.append(frame)
 
-            print(f"Processing {video_name}: {int(len(processed_frames) * 100 / frames)}% ({len(processed_frames)} / {frames})", end="\r")
+            logger.info(f"Processing {video_name}: {int(len(processed_frames) * 100 / frames)}% ({len(processed_frames)} / {frames})\r")
+            sys.stdout.flush()
 
             if len(processed_frames) == frames:
                 break
-
-            # Display the processed frame
-            frame = utils.auto_resize(mat=frame, ratio=1.5)
-            cv2.imshow("", frame)
-
-            if cv2.waitKey(25) & 0xFF == ord("q"):
-                break
-
-        cv2.destroyAllWindows()
-        print("")
+        
+        if live:
+            cv2.destroyAllWindows()
 
         output_video = join(processed_videos_folder, video_name)
-
-        print(f"Saving {video_name} to {output_video}...",end="")
+        
+        logging.info(f"Saving {video_name} to {output_video}...\n")
 
         # Save the processed video
         frame_height, frame_width, _ = processed_frames[0].shape
@@ -160,9 +149,14 @@ def _stitch_video(videos: list[str]) -> None:
         out.release()
         video.release()
 
-        print("DONE")
-
 if __name__ == "__main__":
+
+    # Setup logger
+    logger.setLevel(logging.INFO)
+    
+    handler = wrapped_logging_handler.WrappedLoggingHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter('[%(asctime)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
+    logger.addHandler(handler)
 
     #? Cut video (just once)
     videos = _cut_video()
@@ -177,3 +171,6 @@ if __name__ == "__main__":
     #? Team identification
 
     #? Ball tracking
+
+    # Cleanup logger
+    logger.removeHandler(handler)
