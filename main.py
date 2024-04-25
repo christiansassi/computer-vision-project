@@ -10,9 +10,8 @@ from src import cut_video
 from src import stitch_image
 from src import utils
 from src import params
-from src import field_extraction
 
-from . import wrapped_logging_handler
+from src import wrapped_logging_handler
 
 # Levels used: DEBUG, INFO
 logger = logging.getLogger()
@@ -60,28 +59,36 @@ def _stitch_video(videos: list[str], live: bool = True) -> None:
         # Some frames give best keypoints and descriptors.
         # We use one of them to cache the homography_matrix and the associated parameters in order to use them later
         if "top" in video:
-            value = params.TOP_VALUE
-            angle = params.TOP_ANGLE
             div_left = params.TOP_DIV_LEFT
             div_right = params.TOP_DIV_RIGHT
-            frame_number = params.FRAME_NUMBER_TOP
+            frame_number = params.TOP_FRAME
+            left_width = params.TOP_COMMON_LEFT
+            right_width = params.TOP_COMMON_RIGHT
 
         elif "center" in video:
-            value = params.CENTER_VALUE
-            angle = params.CENTER_ANGLE
             div_left = params.CENTER_DIV_LEFT
             div_right = params.CENTER_DIV_RIGHT
-            frame_number = params.FRAME_NUMBER_CENTER
+            frame_number = params.CENTER_FRAME
+            left_width = params.CENTER_COMMON_LEFT
+            right_width = params.CENTER_COMMON_RIGHT
 
         elif "bottom" in video:
-            value = params.BOTTOM_VALUE
-            angle = params.BOTTOM_ANGLE
             div_left = params.BOTTOM_DIV_LEFT
             div_right = params.BOTTOM_DIV_RIGHT
-            frame_number = params.FRAME_NUMBER_BOTTOM
+            frame_number = params.BOTTOM_FRAME
+            left_width = params.BOTTOM_COMMON_LEFT
+            right_width = params.BOTTOM_COMMON_RIGHT
 
         else:
             raise Exception("Unknwon video")
+
+        value = params.VALUE
+        angle = params.ANGLE
+
+        # Pre-process the selected frame and cache the results
+        left_frame, right_frame = utils.extract_frame(video=video, div_left=div_left, div_right=div_right, frame_number=frame_number)
+        left_frame, right_frame = utils.black_box_on_image(left_frame=left_frame, right_frame=right_frame, left_width=left_width, right_width=right_width)
+        stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle)
 
         # Open video
         video = cv2.VideoCapture(video)

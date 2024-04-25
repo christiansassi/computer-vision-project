@@ -1,10 +1,8 @@
 import cv2
 import numpy as np  
 import math
-
 from typing import Union
 import inspect
-
 import logging
 
 def auto_crop(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat]) -> np.ndarray:
@@ -51,29 +49,30 @@ def auto_crop(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat]) -> np.n
     # Crop the image
     return _mat[top:bottom+1, left:right+1]
 
-def filter_matches(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoint], right_frame_keypoints: tuple[cv2.KeyPoint], value: float = 0.99, angle: float = 2) -> list:
-
-    filtered_matches = []
+def filter_matches(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoint], right_frame_keypoints: tuple[cv2.KeyPoint], value: float, angle: float) -> list:
 
     # Applying ratio test and filtering out the good matches
     matches = [[match1] for match1, match2 in matches if match1.distance < value * match2.distance]
 
     # Filter matches based on angles
+    _matches = []
+
     for index, match in enumerate(matches):
         fp_x, fp_y = left_frame_keypoints[match[0].queryIdx].pt
         sp_x, sp_y = right_frame_keypoints[match[0].trainIdx].pt
 
         inclination = math.degrees(math.atan((sp_y-fp_y)/(sp_x-fp_x)))
-        distance = match[0].distance
-        
+
         if abs(inclination) > angle: 
-            logging.debug(f"Match {index} with inclination: {inclination} and distance {distance} [REMOVED]\n")
+            logging.debug(f"Match {index} with inclination: {inclination} and distance {match[0].distance} [REMOVED]\n")
             continue
 
-        filtered_matches.append(match)
-        logging.debug(f"Match {index} with inclination: {inclination} and distance {distance}\n")
+        _matches.append(match)
+        logging.debug(f"Match {index} with inclination: {inclination} and distance {match[0].distance}\n")
     
-    return filtered_matches
+    matches = _matches
+
+    return matches
 
 def find_matches(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], k: int) -> tuple[list[list], tuple[cv2.KeyPoint], tuple[cv2.KeyPoint]]:
 
@@ -175,7 +174,16 @@ def get_new_frame_size_and_matrix(homography_matrix: np.ndarray, left_frame_shap
     
     return [new_height, new_width], correction, homography_matrix
 
-def stitch_images(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], value: float, angle: float, k: int = 2, ransacReprojThreshold: float = 4, crop: bool = True, clear_cache: bool = True, f_matches: bool = True) -> tuple[np.ndarray, Union[np.ndarray, None]]:
+def stitch_images(
+        left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], 
+        right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], 
+        value: float = 0.99, 
+        angle: float = 2, 
+        k: int = 2, 
+        ransacReprojThreshold: float = 4, 
+        crop: bool = True, 
+        clear_cache: bool = True, 
+        f_matches: bool = True) -> tuple[np.ndarray, Union[np.ndarray, None]]:
 
     # Cache
     function = eval(inspect.stack()[0][3])
@@ -212,7 +220,13 @@ def stitch_images(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMa
     
     # If specified, draw matches
     if f_matches:
-        frame_matches = cv2.drawMatchesKnn(left_frame, left_frame_keypoints, right_frame, right_frame_keypoints, matches, None, 
+        frame_matches = cv2.drawMatchesKnn(
+            img1=left_frame, 
+            keypoints1=left_frame_keypoints, 
+            img2=right_frame, 
+            keypoints2=right_frame_keypoints, 
+            matches1to2=matches, 
+            outImg=None, 
             flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS, 
             matchColor=(0, 0, 255), singlePointColor=(0, 255, 255))
     else:

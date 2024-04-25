@@ -1,2 +1,4 @@
 moviepy
 screeninfo
+opencv-python
+numpy

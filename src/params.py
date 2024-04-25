@@ -1,30 +1,31 @@
 
 #? CONST
 
-TOP_VALUE = 0.99 # Value for matching keypoints
-TOP_ANGLE = 2 # Angle for matching keypoints
+VALUE = 0.99 # Value for matching keypoints
+ANGLE = 2 # Angle for matching keypoints
+
 TOP_DIV_LEFT = 899 # Left div
 TOP_DIV_RIGHT = 3194 # Right div
+TOP_COMMON_LEFT = 913 # Leftmost common point
+TOP_COMMON_RIGHT = 231 # Rightmost common point
+TOP_FRAME = 120 # Reference for top frame
 
-CENTER_VALUE = 0.99 # Value used for matching keypoints
-CENTER_ANGLE = 2 # Angle for matching keypoints
 CENTER_DIV_LEFT = 1024 # Left div
 CENTER_DIV_RIGHT = 3072 # Right div
+CENTER_COMMON_LEFT = 884 # Leftmost common point
+CENTER_COMMON_RIGHT = 144 # Rightmost common point
+CENTER_FRAME = 120 # Reference for center frame
 
-BOTTOM_VALUE = 0.99 # Value used for matching keypoints
-BOTTOM_ANGLE = 2 # Angle for matching keypoints
-BOTTOM_DIV_LEFT = TOP_DIV_LEFT # Left div
-BOTTOM_DIV_RIGHT = TOP_DIV_RIGHT # Right div
-
-FRAME_NUMBER_TOP = 120 # Reference for top frame
-FRAME_NUMBER_BOTTOM = 120 # Reference for bottom frame
-FRAME_NUMBER_CENTER = 120 # Reference for center frame
-
-MARGIN = 100 # Margin volleyball field
+BOTTOM_DIV_LEFT = 899 # Left div
+BOTTOM_DIV_RIGHT = 3194 # Right div
+BOTTOM_COMMON_LEFT = 786 # Leftmost common point
+BOTTOM_COMMON_RIGHT = 370 # Rightmost common point
+BOTTOM_FRAME = 120 # Reference for bottom frame
 
 FRAMES_DEMO = None # Limit for demo test. None = no demo
 
 #? USER
+
 from os.path import join
 
 ROOT = "videos"
