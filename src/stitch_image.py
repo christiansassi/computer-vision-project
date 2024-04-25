@@ -49,7 +49,7 @@ def auto_crop(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat]) -> np.n
     # Crop the image
     return _mat[top:bottom+1, left:right+1]
 
-def filter_matches(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoint], right_frame_keypoints: tuple[cv2.KeyPoint], value: float, angle: float) -> list:
+def filter_matches(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoint], right_frame_keypoints: tuple[cv2.KeyPoint], value: float, angle: float) -> list[list]:
 
     # Applying ratio test and filtering out the good matches
     matches = [[match1] for match1, match2 in matches if match1.distance < value * match2.distance]
