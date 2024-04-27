@@ -86,7 +86,8 @@ def _stitch_video(videos: list[str], live: bool = True) -> None:
         angle = params.ANGLE
 
         # Pre-process the selected frame and cache the results
-        left_frame, right_frame = utils.extract_frame(video=video, div_left=div_left, div_right=div_right, frame_number=frame_number)
+        frame = utils.extract_frame(video=video, div_left=div_left, div_right=div_right, frame_number=frame_number)
+        left_frame, right_frame = utils.split_frame(mat=frame, div_left=div_left, div_right=div_right)
         left_frame, right_frame = utils.black_box_on_image(left_frame=left_frame, right_frame=right_frame, left_width=left_width, right_width=right_width)
         stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle)
 
