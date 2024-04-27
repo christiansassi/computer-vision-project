@@ -5,50 +5,6 @@ from typing import Union
 import inspect
 import logging
 
-def auto_crop(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat]) -> np.ndarray:
-
-    # Copy the image
-    _mat = mat.copy()
-
-    # Get first left non black pixel
-    for x in range(0, _mat.shape[1]):
-
-        if np.all(_mat[:, x] == 0):
-            continue
-
-        left = x
-        break
-    
-    # Get first right non black pixel
-    for x in range(_mat.shape[1]-1, -1, -1):
-
-        if np.all(_mat[:, x] == 0):
-            continue
-
-        right = x
-        break
-
-    # Get first top non black pixel
-    for y in range(0, _mat.shape[0]):
-
-        if np.all(_mat[y, :] == 0):
-            continue
-
-        top = y
-        break
-    
-    # Get first bottom non black pixel
-    for y in range(_mat.shape[0]-1, -1, -1):
-
-        if np.all(_mat[y, :] == 0):
-            continue
-
-        bottom = y
-        break
-    
-    # Crop the image
-    return _mat[top:bottom+1, left:right+1]
-
 def filter_matches(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoint], right_frame_keypoints: tuple[cv2.KeyPoint], value: float, angle: float) -> list[list]:
 
     # Applying ratio test and filtering out the good matches
@@ -180,8 +136,7 @@ def stitch_images(
         value: float = 0.99, 
         angle: float = 2, 
         k: int = 2, 
-        ransacReprojThreshold: float = 4, 
-        crop: bool = True, 
+        ransacReprojThreshold: float = 4,
         clear_cache: bool = True, 
         f_matches: bool = True) -> tuple[np.ndarray, Union[np.ndarray, None]]:
 
@@ -231,9 +186,5 @@ def stitch_images(
             matchColor=(0, 0, 255), singlePointColor=(0, 255, 255))
     else:
         frame_matches = None
-
-    # If specified, crop the image
-    if crop:
-        stitched_image = auto_crop(mat=stitched_image)
 
     return stitched_image, frame_matches

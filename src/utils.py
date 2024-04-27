@@ -59,7 +59,7 @@ def show_img(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat, list[cv2.
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-def extract_frame(video: str, div_left: int, div_right: int, frame_number: int) -> tuple[np.ndarray, np.ndarray]:
+def extract_frame(video: str, frame_number: int) -> np.ndarray:
 
     assert isfile(video), f"'{video}' is not a valid video"
 
@@ -71,7 +71,13 @@ def extract_frame(video: str, div_left: int, div_right: int, frame_number: int) 
 
     assert success, "Could not extract the selected frame"
 
-    frame = frame[:, div_left:div_right+1]
+    return frame
+
+def split_frame(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], div_left: int, div_right: int) -> tuple[np.ndarray, np.ndarray]:
+
+    _mat = mat.copy()
+
+    frame = _mat[:, div_left:div_right+1]
     left_frame = frame[:, 0:frame.shape[1]//2]
     right_frame = frame[:, frame.shape[1]//2:]
     
