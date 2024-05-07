@@ -10,6 +10,7 @@ from src import cut_video
 from src import stitch_image
 from src import utils
 from src import params
+from src import blending
 
 from src import wrapped_logging_handler
 
@@ -64,6 +65,7 @@ def _stitch_video(videos: list[str], live: bool = True) -> None:
             frame_number = params.TOP_FRAME
             left_width = params.TOP_COMMON_LEFT
             right_width = params.TOP_COMMON_RIGHT
+            intersection = params.TOP_INTERSECTION
 
         elif "center" in video:
             div_left = params.CENTER_DIV_LEFT
@@ -71,6 +73,7 @@ def _stitch_video(videos: list[str], live: bool = True) -> None:
             frame_number = params.CENTER_FRAME
             left_width = params.CENTER_COMMON_LEFT
             right_width = params.CENTER_COMMON_RIGHT
+            intersection = params.CENTER_INTERSECTION
 
         elif "bottom" in video:
             div_left = params.BOTTOM_DIV_LEFT
@@ -78,6 +81,7 @@ def _stitch_video(videos: list[str], live: bool = True) -> None:
             frame_number = params.BOTTOM_FRAME
             left_width = params.BOTTOM_COMMON_LEFT
             right_width = params.BOTTOM_COMMON_RIGHT
+            intersection = params.BOTTOM_INTERSECTION
 
         else:
             raise Exception("Unknwon video")
@@ -86,7 +90,7 @@ def _stitch_video(videos: list[str], live: bool = True) -> None:
         angle = params.ANGLE
 
         # Pre-process the selected frame and cache the results
-        frame = utils.extract_frame(video=video, div_left=div_left, div_right=div_right, frame_number=frame_number)
+        frame = utils.extract_frame(video=video, frame_number=frame_number)
         left_frame, right_frame = utils.split_frame(mat=frame, div_left=div_left, div_right=div_right)
         left_frame, right_frame = utils.black_box_on_image(left_frame=left_frame, right_frame=right_frame, left_width=left_width, right_width=right_width)
         stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle)
@@ -115,9 +119,14 @@ def _stitch_video(videos: list[str], live: bool = True) -> None:
 
             # Stitch frame
             frame, _ = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle, clear_cache=False, f_matches=False)
+            video_name = video_name.replace(".mp4", "")
+            cv2.imwrite(f"videos/blend/not_blend_{video_name}.jpg", frame)
+            # Blend frame
+            frame = blending.blend_image(mat=frame, intersection=intersection, intensity=3)
+            cv2.imwrite(f"videos/blend/blend_{video_name}.jpg", frame)
 
             # Auto resize the extracted frame
-            frame = utils.auto_resize(mat=frame)
+            frame = utils.auto_resize(mat=frame, ratio=1)
 
             if live:
                 # Display the processed frame
