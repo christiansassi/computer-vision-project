@@ -54,8 +54,8 @@ def _stitch_video(videos: list[str], live: bool = True) -> None:
     for video in sorted(videos):
         assert all(isfile(video) for video in videos), f"Unable to locate {video}"
         
-        # Save the video name for later
         video_name = basename(video)
+        video_label = video_name.replace(".mp4", "")
 
         # Some frames give best keypoints and descriptors.
         # We use one of them to cache the homography_matrix and the associated parameters in order to use them later
@@ -93,17 +93,29 @@ def _stitch_video(videos: list[str], live: bool = True) -> None:
         frame = utils.extract_frame(video=video, frame_number=frame_number)
         left_frame, right_frame = utils.split_frame(mat=frame, div_left=div_left, div_right=div_right)
         left_frame, right_frame = utils.black_box_on_image(left_frame=left_frame, right_frame=right_frame, left_width=left_width, right_width=right_width)
-        stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle)
+        frame, _ = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle)
+        frame = blending.blend_image(mat=frame, intersection=intersection, intensity=3)
+        frame = utils.auto_resize(mat=frame, ratio=1)
 
         # Open video
         video = cv2.VideoCapture(video)
         assert video.isOpened(), "An error occours while reading the video"
 
+        # Set start at frame with index equals to 0
         video.set(cv2.CAP_PROP_POS_FRAMES, 0)
 
         frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT)) if params.FRAMES_DEMO is None else params.FRAMES_DEMO
+        processed_frames = 0
+
+        # Create a new video object to save each frame during each interaction
+        # Saving all the frames in a list and then saving them is memory-consuming (lots of GBs of RAM)
+        # Therefore, this solution is better
+        output_video = join(processed_videos_folder, video_name)
+
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         fps = int(video.get(cv2.CAP_PROP_FPS))
-        processed_frames = []
+        frame_height, frame_width, _ = frame.shape
+        out = cv2.VideoWriter(output_video, fourcc, fps, (frame_width, frame_height))
 
         while True:
             
@@ -119,11 +131,9 @@ def _stitch_video(videos: list[str], live: bool = True) -> None:
 
             # Stitch frame
             frame, _ = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle, clear_cache=False, f_matches=False)
-            video_name = video_name.replace(".mp4", "")
-            cv2.imwrite(f"videos/blend/not_blend_{video_name}.jpg", frame)
+
             # Blend frame
             frame = blending.blend_image(mat=frame, intersection=intersection, intensity=3)
-            cv2.imwrite(f"videos/blend/blend_{video_name}.jpg", frame)
 
             # Auto resize the extracted frame
             frame = utils.auto_resize(mat=frame, ratio=1)
@@ -136,33 +146,21 @@ def _stitch_video(videos: list[str], live: bool = True) -> None:
                     break
 
             # Save the processed frame
-            processed_frames.append(frame)
+            out.write(frame)
 
-            logger.info(f"Processing {video_name}: {int(len(processed_frames) * 100 / frames)}% ({len(processed_frames)} / {frames})\r")
+            # Display log info
+            processed_frames = processed_frames + 1
+
+            logger.info(f"Processing {video_label} view: {int(processed_frames * 100 / frames)}% ({processed_frames} / {frames})\r")
             sys.stdout.flush()
 
-            if len(processed_frames) == frames:
+            if processed_frames == frames:
                 break
         
+        # Cleanup
         if live:
             cv2.destroyAllWindows()
 
-        output_video = join(processed_videos_folder, video_name)
-        
-        logging.info(f"Saving {video_name} to {output_video}...\n")
-
-        # Save the processed video
-        frame_height, frame_width, _ = processed_frames[0].shape
-
-        # Define the codec and create VideoWriter object
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        out = cv2.VideoWriter(output_video, fourcc, fps, (frame_width, frame_height))
-
-        # Write frames to the video
-        for frame in processed_frames:
-            out.write(frame)
-
-        # Release the VideoWriter object
         out.release()
         video.release()
 

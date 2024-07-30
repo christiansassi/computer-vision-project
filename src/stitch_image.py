@@ -30,7 +30,7 @@ def filter_matches(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoint
 
     return matches
 
-def find_matches(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], k: int) -> tuple[list[list], tuple[cv2.KeyPoint], tuple[cv2.KeyPoint]]:
+def find_matches(left_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, right_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, k: int) -> tuple[list[list], tuple[cv2.KeyPoint], tuple[cv2.KeyPoint]]:
 
     # Copy the image
     _left_frame = left_frame.copy()
@@ -131,14 +131,14 @@ def get_new_frame_size_and_matrix(homography_matrix: np.ndarray, left_frame_shap
     return [new_height, new_width], correction, homography_matrix
 
 def stitch_images(
-        left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], 
-        right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], 
+        left_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, 
+        right_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, 
         value: float = 0.99, 
         angle: float = 2, 
         k: int = 2, 
         ransacReprojThreshold: float = 4,
         clear_cache: bool = True, 
-        f_matches: bool = True) -> tuple[np.ndarray, Union[np.ndarray, None]]:
+        f_matches: bool = True) -> tuple[np.ndarray, np.ndarray | None]:
 
     # Cache
     function = eval(inspect.stack()[0][3])

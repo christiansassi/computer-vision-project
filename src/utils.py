@@ -5,7 +5,7 @@ from uuid import uuid4
 from typing import Union
 from os.path import isfile
 
-def auto_resize(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], ratio: float = 2) -> np.ndarray:
+def auto_resize(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, ratio: float = 2) -> np.ndarray:
 
     # Get monitor info in order to calculate the best size for the image(s)
     monitor = screeninfo.get_monitors()[0]
@@ -34,7 +34,7 @@ def auto_resize(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], ratio
 
     return _mat
 
-def show_img(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat, list[cv2.typing.MatLike], list[cv2.cuda.GpuMat], list[cv2.UMat]], winname: Union[str, list[str]] = "", ratio: float = 2) -> None:
+def show_img(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat | list[cv2.typing.MatLike] | list[cv2.cuda.GpuMat] | list[cv2.UMat], winname: str | list[str] = "", ratio: float = 2) -> None:
 
     # Prepare image(s) and label(s)
     if not isinstance(mat, list):
@@ -73,7 +73,7 @@ def extract_frame(video: str, frame_number: int) -> np.ndarray:
 
     return frame
 
-def split_frame(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], div_left: int, div_right: int) -> tuple[np.ndarray, np.ndarray]:
+def split_frame(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, div_left: int, div_right: int) -> tuple[np.ndarray, np.ndarray]:
 
     _mat = mat.copy()
 
@@ -83,7 +83,7 @@ def split_frame(mat: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], div_l
     
     return left_frame, right_frame
 
-def black_box_on_image(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], left_width: int = None, left_height: int = None, right_width: int = None, right_height: int = None) -> tuple[np.ndarray, np.ndarray]:
+def black_box_on_image(left_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, right_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, left_width: int = None, left_height: int = None, right_width: int = None, right_height: int = None) -> tuple[np.ndarray, np.ndarray]:
 
     # Adjust widths and heights if needed
     if left_width is None or left_width > left_frame.shape[1]:
