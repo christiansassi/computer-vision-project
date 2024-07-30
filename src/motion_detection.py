@@ -3,7 +3,7 @@ import inspect
 import numpy as np
 from shapely.geometry import Polygon, LineString
 
-def _limit_detection(contours: tuple) -> tuple:
+def _filter_contours(contours: tuple, min_contour_area: int) -> tuple:
 
     #! TO BE ADJUSTED WITH THE FINAL STITCHED IMAGE
     a = (316, 96)
@@ -14,11 +14,19 @@ def _limit_detection(contours: tuple) -> tuple:
     intercepted_contours = []
 
     polygon = Polygon(np.array([a, b, c, d]))
+    polygon = polygon.buffer(100)
 
     for contour in contours:
-
-        if polygon.intersects(LineString(contour.squeeze())):
-            intercepted_contours.append(contour)
+        
+        # Ignore small areas
+        if cv2.contourArea(contour) < min_contour_area:
+            continue
+        
+        # Ignore non-intersecting contours 
+        if not polygon.intersects(LineString(contour.squeeze())):
+            continue
+        
+        intercepted_contours.append(contour)
 
     return tuple(intercepted_contours)
 
@@ -41,12 +49,12 @@ def frame_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, tim
     # Convert ref frame to gray and apply gaussian blur
     ref_frame = function.ref_frame
     ref_frame_gray = cv2.cvtColor(ref_frame, cv2.COLOR_BGR2GRAY)
-    ref_frame_gray = cv2.GaussianBlur(ref_frame_gray, (5, 5), 0)
+    ref_frame_gray = cv2.GaussianBlur(ref_frame_gray, (15, 15), 0)
 
     # Convert current frame to gray and apply gaussian blur
     frame = mat.copy()
     frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    frame_gray = cv2.GaussianBlur(frame_gray, (5, 5), 0)
+    frame_gray = cv2.GaussianBlur(frame_gray, (15, 15), 0)
 
     # Calculate abs difference between the two frames
     diff = cv2.absdiff(ref_frame_gray, frame_gray)
@@ -55,20 +63,16 @@ def frame_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, tim
     _, thresh = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)
     
     # Dilate the thresholded image to fill in holes
-    thresh = cv2.dilate(thresh, None, iterations=10)
+    thresh = cv2.dilate(thresh, None, iterations=2)
 
     # Extract contours
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contours = _limit_detection(contours=contours)
+    contours = _filter_contours(contours=contours, min_contour_area=6500)
 
     bounding_boxes = []
 
     # Draw bounding boxes around detected motion
     for contour in contours:
-        
-        # Ignore small areas
-        if cv2.contourArea(contour) < 1500:
-            continue
 
         x, y, w, h = cv2.boundingRect(contour)
         bounding_boxes.append((x, y, w, h))
@@ -92,12 +96,15 @@ def background_substraction(background: cv2.typing.MatLike | cv2.cuda.GpuMat | c
     # Convert background to gray and apply gaussian blur
     _background = background.copy()
     background_gray = cv2.cvtColor(_background, cv2.COLOR_BGR2GRAY)
-    background_gray = cv2.GaussianBlur(background_gray, (5, 5), 0)
+    background_gray = cv2.GaussianBlur(background_gray, (15, 15), 0)
 
     # Convert frame to gray and apply gaussian blur
     frame = mat.copy()
     frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    frame_gray = cv2.GaussianBlur(frame_gray, (5, 5), 0)
+    frame_gray = cv2.GaussianBlur(frame_gray, (15, 15), 0)
+
+    #cv2.imwrite("blur.jpg", frame_gray)
+    #exit(0)
 
     # Calculate abs difference between the two frames
     diff = cv2.absdiff(background_gray, frame_gray)
@@ -110,22 +117,18 @@ def background_substraction(background: cv2.typing.MatLike | cv2.cuda.GpuMat | c
 
     # Extract contours
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contours = _limit_detection(contours=contours)
+    contours = _filter_contours(contours=contours, min_contour_area=4000)
 
     bounding_boxes = []
 
     # Draw bounding boxes around detected motion
     for contour in contours:
-        
-        # Ignore small areas
-        if cv2.contourArea(contour) < 3000:
-            continue
 
         x, y, w, h = cv2.boundingRect(contour)
         bounding_boxes.append((x, y, w, h))
 
         cv2.rectangle(original_frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
-    
+
     return original_frame, bounding_boxes
 
 def adaptive_background_substraction(background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, alpha: float) -> tuple[np.ndarray, list[tuple]]:
@@ -147,12 +150,12 @@ def adaptive_background_substraction(background: cv2.typing.MatLike | cv2.cuda.G
     
     # Convert background to gray and apply gaussian blur
     background_gray = cv2.cvtColor(function.background, cv2.COLOR_BGR2GRAY)
-    background_gray = cv2.GaussianBlur(background_gray, (5, 5), 0)
+    background_gray = cv2.GaussianBlur(background_gray, (15, 15), 0)
 
     # Convert frame to gray and apply gaussian blur
     frame = mat.copy()
     frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    frame_gray = cv2.GaussianBlur(frame_gray, (5, 5), 0)
+    frame_gray = cv2.GaussianBlur(frame_gray, (15, 15), 0)
 
     # Calculate abs difference between the two frames
     diff = cv2.absdiff(background_gray, frame_gray)
@@ -165,16 +168,12 @@ def adaptive_background_substraction(background: cv2.typing.MatLike | cv2.cuda.G
 
     # Extract contours
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contours = _limit_detection(contours=contours)
+    contours = _filter_contours(contours=contours, min_contour_area=4000)
 
     bounding_boxes = []
 
     # Draw bounding boxes around detected motion
     for contour in contours:
-        
-        # Ignore small areas
-        if cv2.contourArea(contour) < 2000:
-            continue
 
         x, y, w, h = cv2.boundingRect(contour)
         bounding_boxes.append((x, y, w, h))

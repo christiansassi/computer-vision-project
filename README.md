@@ -9,6 +9,6 @@ Pietro Bologna - [pietro.bologna@studenti.unitn.it](mailto:pietro.bologna@studen
 Christian Sassi - [christian.sassi@studenti.unitn.it](mailto:christian.sassi@studenti.unitn.it)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/extras/dark.png">
-  <img alt="https://www.unitn.it/" src="assets/extras/light.png" width="300px">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/extras/dark.png">
+    <img alt="https://www.unitn.it/" src="assets/extras/light.png" width="300px">
 </picture>
