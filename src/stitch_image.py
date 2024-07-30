@@ -5,30 +5,36 @@ from typing import Union
 import inspect
 import logging
 
-def filter_matches(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoint], right_frame_keypoints: tuple[cv2.KeyPoint], value: float, angle: float) -> list[list]:
-
-    # Applying ratio test and filtering out the good matches
-    matches = [[match1] for match1, match2 in matches if match1.distance < value * match2.distance]
-
+def filter_matches(matches, left_frame_keypoints, right_frame_keypoints, value, angle):
     # Filter matches based on angles
     _matches = []
 
+    # Loop through all the matches
     for index, match in enumerate(matches):
         fp_x, fp_y = left_frame_keypoints[match[0].queryIdx].pt
         sp_x, sp_y = right_frame_keypoints[match[0].trainIdx].pt
 
-        inclination = math.degrees(math.atan((sp_y-fp_y)/(sp_x-fp_x)))
+        # Finding the inclination of the line joining the two points
+        inclination = math.degrees(math.atan((sp_y - fp_y)/(sp_x - fp_x)))
+        # inclination = math.degrees(math.atan2((sp_y - fp_y), (sp_x - fp_x)))
 
-        if abs(inclination) > angle: 
-            logging.debug(f"Match {index} with inclination: {inclination} and distance {match[0].distance} [REMOVED]\n")
-            continue
+        # Filtering out the matches based on the inclination
+        if isinstance(angle, tuple):
+            if angle[0] <= inclination <= angle[1]:
+                logging.debug(f"Match {index} with inclination: {inclination} and distance {match[0].distance} [KEPT]\n")
+                _matches.append(match)
+            else:
+                logging.debug(f"Match {index} with inclination: {inclination} and distance {match[0].distance} [REMOVED]\n")
+        else:
+            if abs(inclination) <= angle:
+                logging.debug(f"Match {index} with inclination: {inclination} and distance {match[0].distance} [KEPT]\n")
+                _matches.append(match)
+            else:
+                logging.debug(f"Match {index} with inclination: {inclination} and distance {match[0].distance} [REMOVED]\n")
 
-        _matches.append(match)
-        logging.debug(f"Match {index} with inclination: {inclination} and distance {match[0].distance}\n")
-    
-    matches = _matches
-
-    return matches
+        # Applying ratio test and filtering out the good matches
+    _matches = [[match1] for match1, match2 in _matches if match1.distance < value * match2.distance]
+    return _matches
 
 def find_matches(left_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, right_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, k: int) -> tuple[list[list], tuple[cv2.KeyPoint], tuple[cv2.KeyPoint]]:
 
