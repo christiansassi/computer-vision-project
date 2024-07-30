@@ -11,7 +11,7 @@ def _limit_detection(contours: tuple) -> tuple:
     c = (1516, 1080)
     d = (367, 1124)
 
-    intercepted_contours = ()
+    intercepted_contours = []
 
     polygon = Polygon(np.array([a, b, c, d]))
 

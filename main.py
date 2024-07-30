@@ -196,7 +196,7 @@ def _motion_detection(videos: list[str]) -> None:
             #! CONS
             #! [-] Stops detecting an object if it stops moving
             #! [-] A larger window can avoid the previous problem but would negatively impact detection quality
-            #processed_frame, bounding_boxes = motion_detection.frame_substraction(mat=frame, time_window=7)
+            processed_frame, bounding_boxes = motion_detection.frame_substraction(mat=frame, time_window=7)
 
             # Apply background substraction
             #* PROS
