@@ -27,6 +27,8 @@ BOTTOM_INTERSECTION = 1148 # Intersection for bottom frame
 
 FRAMES_DEMO = None # Limit for demo test. None = no demo
 
+BACKGROUND_FRAME = 5376
+
 #? USER
 
 from os.path import join

@@ -5,12 +5,14 @@ import sys
 import logging
 
 import cv2
+import numpy as np
 
 from src import cut_video
 from src import stitch_image
 from src import utils
 from src import params
 from src import blending
+from src import motion_detection
 
 from src import wrapped_logging_handler
 
@@ -164,6 +166,44 @@ def _stitch_video(videos: list[str], live: bool = True) -> None:
         out.release()
         video.release()
 
+def _motion_detection(videos: list[str]) -> None:
+
+    for video in sorted(videos):
+        
+        video_name = video
+
+        # Open video
+        video = cv2.VideoCapture(video)
+        assert video.isOpened(), "An error occours while reading the video"
+
+        # Set start at frame with index equals to 0
+        video.set(cv2.CAP_PROP_POS_FRAMES, 0)
+
+        background = utils.extract_frame(video=video_name, frame_number=params.BACKGROUND_FRAME)
+
+        while True:
+
+            # Extract frame by frame
+            success, frame = video.read()
+
+            if not success:
+                break
+            
+            # Apply frame substraction
+            #processed_frame, bounding_boxes = motion_detection.frame_substraction(mat=frame, time_window=1)
+
+            # Apply background substraction
+            processed_frame, bounding_boxes = motion_detection.background_substraction(background=background, mat=frame)
+
+            # Apply adaptive substraction
+            #processed_frame, bounding_boxes = motion_detection.adaptive_background_substraction(background=background, mat=frame, alpha=0.05)
+
+            # Display the processed frame
+            cv2.imshow(winname="", mat=processed_frame)
+
+            if cv2.waitKey(25) & 0xFF == ord("q"):
+                break
+
 if __name__ == "__main__":
 
     # Setup logger
@@ -174,12 +214,14 @@ if __name__ == "__main__":
     logger.addHandler(handler)
 
     #? Cut video (just once)
-    videos = _cut_video()
+    #videos = _cut_video()
 
     #? Stitch video
-    _stitch_video(videos=videos)
+    #_stitch_video(videos=videos)
 
     #? Detection
+    videos = [r"videos\processed\bottom.mp4"]
+    _motion_detection(videos=videos)
 
     #? Tracking
 
