@@ -137,8 +137,11 @@ def _stitch_video(videos: list[str], live: bool = True) -> None:
             # Blend frame
             frame = blending.blend_image(mat=frame, intersection=intersection, intensity=3)
 
+            # Save the processed frame
+            out.write(frame)
+
             # Auto resize the extracted frame
-            frame = utils.auto_resize(mat=frame, ratio=1)
+            frame = utils.auto_resize(mat=frame, ratio=2)
 
             if live:
                 # Display the processed frame
@@ -146,9 +149,6 @@ def _stitch_video(videos: list[str], live: bool = True) -> None:
 
                 if cv2.waitKey(25) & 0xFF == ord("q"):
                     break
-
-            # Save the processed frame
-            out.write(frame)
 
             # Display log info
             processed_frames = processed_frames + 1
@@ -190,13 +190,34 @@ def _motion_detection(videos: list[str]) -> None:
                 break
             
             # Apply frame substraction
-            #processed_frame, bounding_boxes = motion_detection.frame_substraction(mat=frame, time_window=1)
+            #* PROS
+            #* [+] None (for this purpose)
+
+            #! CONS
+            #! [-] Stops detecting an object if it stops moving
+            #! [-] A larger window can avoid the previous problem but would negatively impact detection quality
+            #processed_frame, bounding_boxes = motion_detection.frame_substraction(mat=frame, time_window=7)
 
             # Apply background substraction
-            processed_frame, bounding_boxes = motion_detection.background_substraction(background=background, mat=frame)
+            #* PROS
+            #* [+] Good since the background doesn't change too much (for this purpose)
+            #* [+] Keeps detecting objects even if they stop moving
+
+            #! CONS
+            #! [-] None (for this purpose)
+            #processed_frame, bounding_boxes = motion_detection.background_substraction(background=background, mat=frame)
 
             # Apply adaptive substraction
+            #* PROS
+            #* [+] Good for this purpose since the background doesn't change too much
+            #* [+] Compared to normal background subtraction, it adapts to small background changes
+
+            #! CONS
+            #! [-] A large alpha value causes the algorithm to stop detecting objects that have stopped moving
+            #! [-] Since we are forced to use a small alpha value, this algorithm becomes similar to normal background subtraction
             #processed_frame, bounding_boxes = motion_detection.adaptive_background_substraction(background=background, mat=frame, alpha=0.05)
+
+            processed_frame = utils.auto_resize(mat=processed_frame, ratio=2)
 
             # Display the processed frame
             cv2.imshow(winname="", mat=processed_frame)

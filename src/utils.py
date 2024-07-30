@@ -7,25 +7,28 @@ from os.path import isfile
 
 def auto_resize(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, ratio: float = 2) -> np.ndarray:
 
-    # Get monitor info in order to calculate the best size for the image(s)
-    monitor = screeninfo.get_monitors()[0]
-
     # Copy the image
     _mat = mat.copy()
 
-    if monitor.height < monitor.width:
+    # Get monitor info in order to calculate the best size for the image
+    monitors = screeninfo.get_monitors()
+
+    width = min(monitors, key=lambda monitor: monitor.width).width
+    height = min(monitors, key=lambda monitor: monitor.height).height
+
+    if height < width:
         # Calculate new height
-        height = int(monitor.height / ratio)
+        height = height // ratio
 
         # Calculate new width proportional to the height
-        width = int(height * _mat.shape[1] / _mat.shape[0])
+        width = height * _mat.shape[1] // _mat.shape[0]
     
     else:
         # Calculate new width
-        width = int(monitor.width / ratio)
+        width = width // ratio
 
         # Calculate new height proportional to the width
-        height = int(width * _mat.shape[0] / _mat.shape[1])
+        height = width * _mat.shape[0] // _mat.shape[1]
 
     winsize = (width, height)
 

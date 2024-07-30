@@ -1,6 +1,26 @@
 import cv2
 import inspect
 import numpy as np
+from shapely.geometry import Polygon, LineString
+
+def _limit_detection(contours: tuple) -> tuple:
+
+    #! TO BE ADJUSTED WITH THE FINAL STITCHED IMAGE
+    a = (316, 96)
+    b = (1410, 57)
+    c = (1516, 1080)
+    d = (367, 1124)
+
+    intercepted_contours = ()
+
+    polygon = Polygon(np.array([a, b, c, d]))
+
+    for contour in contours:
+
+        if polygon.intersects(LineString(contour.squeeze())):
+            intercepted_contours.append(contour)
+
+    return tuple(intercepted_contours)
 
 def frame_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, time_window: int = 1) -> tuple[np.ndarray, list[tuple]]:
 
@@ -39,7 +59,8 @@ def frame_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, tim
 
     # Extract contours
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
+    contours = _limit_detection(contours=contours)
+
     bounding_boxes = []
 
     # Draw bounding boxes around detected motion
@@ -89,7 +110,8 @@ def background_substraction(background: cv2.typing.MatLike | cv2.cuda.GpuMat | c
 
     # Extract contours
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
+    contours = _limit_detection(contours=contours)
+
     bounding_boxes = []
 
     # Draw bounding boxes around detected motion
@@ -143,7 +165,8 @@ def adaptive_background_substraction(background: cv2.typing.MatLike | cv2.cuda.G
 
     # Extract contours
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
+    contours = _limit_detection(contours=contours)
+
     bounding_boxes = []
 
     # Draw bounding boxes around detected motion
