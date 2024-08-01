@@ -4,6 +4,7 @@ import screeninfo
 from uuid import uuid4
 from typing import Union
 from os.path import isfile
+from copy import deepcopy
 
 def auto_resize(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, ratio: float = 2) -> np.ndarray:
 
@@ -62,15 +63,24 @@ def show_img(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat | list[cv2.typ
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-def extract_frame(video: str, frame_number: int) -> np.ndarray:
+def extract_frame(video: str | cv2.VideoCapture, frame_number: int) -> np.ndarray:
 
-    assert isfile(video), f"'{video}' is not a valid video"
+    if isinstance(video, str):
 
-    video = cv2.VideoCapture(video)
-    assert video.isOpened(), "An error occours while reading the video"
+        assert isfile(video), f"'{video}' is not a valid video"
 
-    video.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
-    success, frame = video.read()
+        video_capture = cv2.VideoCapture(video)
+        assert video_capture.isOpened(), "An error occours while reading the video"
+
+    elif isinstance(video, cv2.VideoCapture):
+        
+        video_capture = deepcopy(video)
+
+    else:
+        raise Exception("Invalid video type")
+
+    video_capture.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+    success, frame = video_capture.read()
 
     assert success, "Could not extract the selected frame"
 

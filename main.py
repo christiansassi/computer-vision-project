@@ -5,8 +5,6 @@ import sys
 import logging
 
 import cv2
-import numpy as np
-import os
 
 from src import cut_video
 from src import stitch_image
@@ -31,11 +29,17 @@ def _cut_video() -> list[str]:
         mkdir(cut_videos_folder)
         cut_videos = []
 
-    if not len(cut_videos):
-        original_video_folder = params.ORIGINAL_VIDEOS_FOLDER
-        original_videos = [f for f in listdir(original_video_folder) if f.endswith(".mp4")]
+    original_video_folder = params.ORIGINAL_VIDEOS_FOLDER
+    original_videos = [f for f in listdir(original_video_folder) if f.endswith(".mp4")]
+    
+    # Check if cut folder contains all the original videos (if not, take it and cut it)
+    if len(cut_videos) != len(original_videos):
 
         for input_video in original_videos:
+
+            if basename(input_video) in cut_videos:
+                continue
+
             output_video = join(cut_videos_folder, input_video)
             input_video = join(original_video_folder, input_video)
             
@@ -167,64 +171,91 @@ def _stitch_video(videos: list[str], live: bool = True) -> None:
         out.release()
         video.release()
 
-def _motion_detection(videos: list[str]) -> None:
+def _motion_detection(video: str, live: bool = True) -> None:
 
-    for video in sorted(videos):
+    # TODO
+    motion_detection_videos_folder = params.MOTION_DETECTION_VIDEOS_FOLDER
+
+    if not exists(motion_detection_videos_folder):
+        mkdir(motion_detection_videos_folder)
+
+    video_name = basename(video)
+    video_label = video_name.replace(".mp4", "")
+    
+    # Open video
+    input_video = cv2.VideoCapture(video)
+    assert input_video.isOpened(), "An error occours while reading the video"
+
+    # Create output video
+    output_video = cv2.VideoWriter(
+        join(motion_detection_videos_folder, video_name), # Specify output file
+        cv2.VideoWriter_fourcc(*"mp4v"), # Specify video type
+        int(input_video.get(cv2.CAP_PROP_FPS)), # Same fps of the original video
+        frame.shape[:2] # Specify shape (width, height)
+    )
+    
+    # Necessary for algorithms using background as reference
+    background = utils.extract_frame(video=input_video, frame_number=params.BACKGROUND_FRAME)
+
+    max_frames = int(input_video.get(cv2.CAP_PROP_FRAME_COUNT)) if params.FRAMES_DEMO is None else params.FRAMES_DEMO
+
+    while True:
+
+        # Extract frame by frame
+        success, frame = input_video.read()
+
+        if not success:
+            break
         
-        video_name = video
+        # Apply frame substraction
+        #* PROS
+        #* [+] None (for this purpose)
 
-        # Open video
-        video = cv2.VideoCapture(video)
-        assert video.isOpened(), "An error occours while reading the video"
+        #! CONS
+        #! [-] Stops detecting an object if it stops moving
+        #! [-] A larger window can avoid the previous problem but would negatively impact detection quality
+        #processed_frame, bounding_boxes = motion_detection.frame_substraction(mat=frame, time_window=7)
 
-        # Set start at frame with index equals to 0
-        video.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        # Apply background substraction
+        #* PROS
+        #* [+] Good since the background doesn't change too much (for this purpose)
+        #* [+] Keeps detecting objects even if they stop moving
 
-        background = utils.extract_frame(video=video_name, frame_number=params.BACKGROUND_FRAME)
+        #! CONS
+        #! [-] None (for this purpose)
+        processed_frame, bounding_boxes = motion_detection.background_substraction(background=background, mat=frame)
 
-        while True:
+        # Apply adaptive substraction
+        #* PROS
+        #* [+] Good for this purpose since the background doesn't change too much
+        #* [+] Compared to normal background subtraction, it adapts to small background changes
 
-            # Extract frame by frame
-            success, frame = video.read()
+        #! CONS
+        #! [-] A large alpha value causes the algorithm to stop detecting objects that have stopped moving
+        #! [-] Since we are forced to use a small alpha value, this algorithm becomes similar to normal background subtraction
+        #processed_frame, bounding_boxes = motion_detection.adaptive_background_substraction(background=background, mat=frame, alpha=0.05)
 
-            if not success:
-                break
-            
-            # Apply frame substraction
-            #* PROS
-            #* [+] None (for this purpose)
-
-            #! CONS
-            #! [-] Stops detecting an object if it stops moving
-            #! [-] A larger window can avoid the previous problem but would negatively impact detection quality
-            #processed_frame, bounding_boxes = motion_detection.frame_substraction(mat=frame, time_window=7)
-
-            # Apply background substraction
-            #* PROS
-            #* [+] Good since the background doesn't change too much (for this purpose)
-            #* [+] Keeps detecting objects even if they stop moving
-
-            #! CONS
-            #! [-] None (for this purpose)
-            processed_frame, bounding_boxes = motion_detection.background_substraction(background=background, mat=frame)
-
-            # Apply adaptive substraction
-            #* PROS
-            #* [+] Good for this purpose since the background doesn't change too much
-            #* [+] Compared to normal background subtraction, it adapts to small background changes
-
-            #! CONS
-            #! [-] A large alpha value causes the algorithm to stop detecting objects that have stopped moving
-            #! [-] Since we are forced to use a small alpha value, this algorithm becomes similar to normal background subtraction
-            #processed_frame, bounding_boxes = motion_detection.adaptive_background_substraction(background=background, mat=frame, alpha=0.05)
-
-            processed_frame = utils.auto_resize(mat=processed_frame, ratio=1.5)
+        # Save the processed frame
+        output_video.write(frame)
+        
+        if live:
 
             # Display the processed frame
-            cv2.imshow(winname="", mat=processed_frame)
+            utils.show_img(mat=processed_frame, winname="Motion detection")
 
             if cv2.waitKey(25) & 0xFF == ord("q"):
                 break
+        
+        # Interrupt motion detection in case of max_frames < total number of frames in the video
+        if input_video.get(cv2.CAP_PROP_POS_FRAMES) == max_frames:
+            break
+
+    # Cleanup
+    if live:
+        cv2.destroyAllWindows()
+
+    output_video.release()
+    input_video.release()
 
 def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
     
@@ -266,6 +297,13 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
             _, _, stitching_params = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle, method=cv2.LMEDS)
             new_frame_size_top, correction_top, homography_matrix_top = stitching_params
 
+            # Extract reference frame for top-center stitching
+            reference_top = utils.extract_frame(video=video, frame_number=131)
+            left_reference_top, right_reference_top = utils.split_frame(mat=reference_top, div_left=params.TOP["div_left"], div_right=params.TOP["div_right"])
+
+            reference_top, matches, _ = stitch_image.stitch_images(left_frame=left_reference_top, right_frame=right_reference_top, value=value, angle=angle, new_frame_size=new_frame_size_top, correction=correction_top, homography_matrix=homography_matrix_top)
+            reference_top = blending.blend_image(mat=reference_top, intersection=params.TOP["intersection"], intensity=3)
+
         elif "center" in video:
             video_center = video_capture
 
@@ -275,6 +313,13 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
             _, _, stitching_params = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle, method=cv2.LMEDS)
             new_frame_size_center, correction_center, homography_matrix_center = stitching_params
 
+            # Extract reference frame for top-center and bottom-center stitching
+            reference_center = utils.extract_frame(video=video, frame_number=131)
+            left_reference_center, right_reference_center = utils.split_frame(mat=reference_center, div_left=params.CENTER["div_left"], div_right=params.CENTER["div_right"])
+
+            reference_center, _, _ = stitch_image.stitch_images(left_frame=left_reference_center, right_frame=right_reference_center, value=value, angle=angle, new_frame_size=new_frame_size_center, correction=correction_center, homography_matrix=homography_matrix_center)
+            reference_center = blending.blend_image(mat=reference_center, intersection=params.CENTER["intersection"], intensity=3)
+            
         elif "bottom" in video:
             video_bottom = video_capture
 
@@ -284,16 +329,18 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
             frame, _, stitching_params = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle, method=cv2.LMEDS)
             new_frame_size_bottom, correction_bottom, homography_matrix_bottom = stitching_params
 
+            # Extract reference frame for bottom-center stitching
+            reference_bottom = utils.extract_frame(video=video, frame_number=131)
+            left_reference_bottom, right_reference_bottom = utils.split_frame(mat=reference_bottom, div_left=params.BOTTOM["div_left"], div_right=params.BOTTOM["div_right"])
+
+            reference_bottom, _, _ = stitch_image.stitch_images(left_frame=left_reference_bottom, right_frame=right_reference_bottom, value=value, angle=angle, new_frame_size=new_frame_size_bottom, correction=correction_bottom, homography_matrix=homography_matrix_bottom)
+            reference_bottom = blending.blend_image(mat=reference_bottom, intersection=params.BOTTOM["intersection"], intensity=3)
+            
         else:
             raise Exception("Unknwon video")
 
     # Load all the images for the final stitching    
-    images = []
-    for filename in os.listdir('videos/blend'):
-        if filename.endswith('.jpg') or filename.endswith('.png'):
-            image_path = os.path.join('videos/blend', filename)
-            img = cv2.imread(image_path)
-            images.append(img)
+    images = [reference_bottom, reference_top, reference_center]
 
     # Rotate and crop the images
     images = utils.rotate_and_crop(images) # [bottom, top, center_for_top, center_for_bottom]
@@ -303,8 +350,8 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
         "center_top": images[2],
         "center_bottom": images[3]
     }
-
-    #* TOP_CENTER
+    
+    #! TOP_CENTER
     lf = cropped_images["center_top"].copy()
     rf = cropped_images["top"].copy()
 
@@ -312,22 +359,47 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
 
     _, _, stitching_params = stitch_image.stitch_images(left_frame=lf, right_frame=rf, value = params.TOP_CENTER["value"], angle = params.TOP_CENTER["angle"], 
                                                         method = cv2.RANSAC, user_left_kp = params.TOP_CENTER["left_frame_kp"], user_right_kp = params.TOP_CENTER["right_frame_kp"])
-    
+
     new_frame_size_top_center, correction_top_center, homography_matrix_top_center = stitching_params
 
-    #* BOTTOM_CENTER
+    # Extract reference frame for the final stitching
+    reference_top_center, _, _ = stitch_image.stitch_images(left_frame=cropped_images["center_top"], right_frame=cropped_images["top"], value = params.TOP_CENTER["value"], angle = params.TOP_CENTER["angle"],
+                                                         method = cv2.RANSAC, new_frame_size=new_frame_size_top_center, correction=correction_top_center, homography_matrix=homography_matrix_top_center, 
+                                                         left_shift_dx = params.TOP_CENTER["left_shift_dx"], left_shift_dy = params.TOP_CENTER["left_shift_dy"], remove_offset = params.TOP_CENTER["remove_offset"]) 
+    
+    #! BOTTOM_CENTER    
     lf = cropped_images["center_bottom"].copy()
     rf = cropped_images["bottom"].copy()
 
     lf, rf = utils.bb(left_frame=lf, right_frame=rf, left_min=params.BOTTOM_CENTER["left_min"], left_max=lf.shape[1], right_min=params.BOTTOM_CENTER["right_min"], right_max=params.BOTTOM_CENTER["right_max"])
-
+    
     _, _, stitching_params = stitch_image.stitch_images(left_frame=lf, right_frame=rf, value = params.BOTTOM_CENTER["value"], angle = params.BOTTOM_CENTER["angle"],
                                                         method = cv2.RANSAC, user_left_kp = params.BOTTOM_CENTER["left_frame_kp"], user_right_kp = params.BOTTOM_CENTER["right_frame_kp"])
-    
+
     new_frame_size_bottom_center, correction_bottom_center, homography_matrix_bottom_center = stitching_params
 
-    #* FINAL
+    # Extract reference frame for the final stitching
+    reference_bottom_center, _, _ = stitch_image.stitch_images(left_frame=cropped_images["center_bottom"], right_frame=cropped_images["bottom"], value = params.BOTTOM_CENTER["value"], angle = params.BOTTOM_CENTER["angle"],
+                                                            method = cv2.RANSAC, new_frame_size=new_frame_size_bottom_center, correction=correction_bottom_center, homography_matrix=homography_matrix_bottom_center, 
+                                                            left_shift_dx = params.BOTTOM_CENTER["left_shift_dx"], left_shift_dy = params.BOTTOM_CENTER["left_shift_dy"], remove_offset = params.BOTTOM_CENTER["remove_offset"])
+
+    #! FINAL
+    left_frame = utils.crop_image(cv2.rotate(reference_top_center, cv2.ROTATE_180))
+    right_frame = utils.crop_image(reference_bottom_center)
+
+    lf = left_frame.copy()
+    rf = right_frame.copy()
+
+    lf, rf = utils.bb(left_frame=lf, right_frame=rf, left_min=params.FINAL["left_min"], left_max=params.FINAL["left_max"], right_min=params.FINAL["right_min"], right_max=params.FINAL["right_max"])
+
+    _, _, stitching_params = stitch_image.stitch_images(left_frame=lf, right_frame=rf, value = params.FINAL["value"], angle = params.FINAL["angle"],
+                                                        method = cv2.RANSAC, user_left_kp = params.FINAL["left_frame_kp"], user_right_kp = params.FINAL["right_frame_kp"])
     
+    new_frame_size_final, correction_final, homography_matrix_final = stitching_params
+
+    reference_final, _, _ = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value = params.FINAL["value"], angle = params.FINAL["angle"],
+                                                       method = cv2.RANSAC, new_frame_size=new_frame_size_final, correction=correction_final, homography_matrix=homography_matrix_final, 
+                                                       left_shift_dx = params.FINAL["left_shift_dx"], left_shift_dy = params.FINAL["left_shift_dy"], remove_offset = params.FINAL["remove_offset"]) 
 
     while True:
 
@@ -380,6 +452,17 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
         # Show frame
         # utils.show_img(frame_bottom, "BOTTOM", ratio=1.5)
 
+        images = [reference_bottom, reference_top, reference_center]
+
+        # Rotate and crop the images
+        images = utils.rotate_and_crop(images) # [bottom, top, center_for_top, center_for_bottom]
+        cropped_images = {
+            "bottom": images[0],
+            "top": images[1],
+            "center_top": images[2],
+            "center_bottom": images[3]
+        } 
+
         #! TOP - CENTER
         frame_top_center, _, _ = stitch_image.stitch_images(left_frame=cropped_images["center_top"], right_frame=cropped_images["top"], value = params.TOP_CENTER["value"], angle = params.TOP_CENTER["angle"],
                                                          new_frame_size=new_frame_size_top_center, correction=correction_top_center, homography_matrix=homography_matrix_top_center, 
@@ -396,8 +479,14 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
         # Show frame
         # utils.show_img(frame_bottom_center, "BOTTOM_CENTER", ratio=1.5)
 
-        #! CENTER - CENTER
-    
+        #! FINAL
+        frame_final, _, _ = stitch_image.stitch_images(left_frame=cv2.rotate(frame_top_center, cv2.ROTATE_180), right_frame=frame_bottom_center, value = params.FINAL["value"], angle = params.FINAL["angle"],
+                                                         new_frame_size=new_frame_size_final, correction=correction_final, homography_matrix=homography_matrix_final, 
+                                                         left_shift_dx = params.FINAL["left_shift_dx"], left_shift_dy = params.FINAL["left_shift_dy"], remove_offset = params.FINAL["remove_offset"])
+
+        # Show frame
+        utils.show_img(frame_final, "FINAL", ratio=1.5)
+
     # Process each video
     for video in sorted(videos):
         assert all(isfile(video) for video in videos), f"Unable to locate {video}"
