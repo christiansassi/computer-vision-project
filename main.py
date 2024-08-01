@@ -225,6 +225,124 @@ def _motion_detection(videos: list[str]) -> None:
             if cv2.waitKey(25) & 0xFF == ord("q"):
                 break
 
+def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
+    
+    processed_videos_folder = params.STITCHED_VIDEOS_FOLDER
+
+    if not exists(processed_videos_folder):
+        mkdir(processed_videos_folder)
+
+    value = params.VALUE
+    angle = params.ANGLE
+
+    # Open all videos
+    video_top = None
+    new_frame_size_top = None
+    correction_top = None
+    homography_matrix_top = None
+
+    video_center = None
+    new_frame_size_center = None
+    correction_center = None
+    homography_matrix_center = None
+
+    video_bottom = None
+    new_frame_size_bottom = None
+    correction_bottom = None
+    homography_matrix_bottom = None
+    
+    for video in videos:
+
+        video_capture = cv2.VideoCapture(video)
+        assert video_capture.isOpened(), "An error occours while reading the video"
+
+        if "top" in video:
+            video_top = video_capture
+
+            frame = utils.extract_frame(video=video, frame_number=params.TOP["frame_number"])
+            left_frame, right_frame = utils.split_frame(mat=frame, div_left=params.TOP["div_left"], div_right=params.TOP["div_right"])
+            left_frame, right_frame = utils.black_box_on_image(left_frame=left_frame, right_frame=right_frame, left_width=params.TOP["left_width"], right_width=params.TOP["right_width"])
+            _, _, stitching_params = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle, method=cv2.LMEDS)
+            new_frame_size_top, correction_top, homography_matrix_top = stitching_params
+
+        elif "center" in video:
+            video_center = video_capture
+
+            frame = utils.extract_frame(video=video, frame_number=params.CENTER["frame_number"])
+            left_frame, right_frame = utils.split_frame(mat=frame, div_left=params.CENTER["div_left"], div_right=params.CENTER["div_right"])
+            left_frame, right_frame = utils.black_box_on_image(left_frame=left_frame, right_frame=right_frame, left_width=params.CENTER["left_width"], right_width=params.CENTER["right_width"])
+            _, _, stitching_params = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle, method=cv2.LMEDS)
+            new_frame_size_center, correction_center, homography_matrix_center = stitching_params
+
+        elif "bottom" in video:
+            video_bottom = video_capture
+
+            frame = utils.extract_frame(video=video, frame_number=params.BOTTOM["frame_number"])
+            left_frame, right_frame = utils.split_frame(mat=frame, div_left=params.BOTTOM["div_left"], div_right=params.BOTTOM["div_right"])
+            left_frame, right_frame = utils.black_box_on_image(left_frame=left_frame, right_frame=right_frame, left_width=params.BOTTOM["left_width"], right_width=params.BOTTOM["right_width"])
+            _, _, stitching_params = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle, method=cv2.LMEDS)
+            new_frame_size_bottom, correction_bottom, homography_matrix_bottom = stitching_params
+
+        else:
+            raise Exception("Unknwon video")
+    
+    while True:
+
+        success_top, frame_top = video_top.read()
+        success_center, frame_center = video_center.read()
+        success_bottom, frame_bottom = video_bottom.read()
+
+        if success_top + success_center + success_bottom != 3:
+            break
+        
+        #! TOP - TOP
+        frame_top = frame_top[: params.TOP["div_left"]:params.TOP["div_right"]+1]
+        left_frame_top = frame_top[:, :frame_top.shape[1] // 2] 
+        right_frame_top = frame_top[:, frame_top.shape[1] // 2:] 
+
+        utils.show_img([left_frame_top, right_frame_top], ratio=1.5)
+
+        # Stitch frame
+        frame_top, _, _ = stitch_image.stitch_images(left_frame=left_frame_top, right_frame=right_frame_top, value=value, angle=angle, new_frame_size=new_frame_size_top, correction=correction_top, homography_matrix=homography_matrix_top)
+
+        # Blend frame
+        frame_top = blending.blend_image(mat=frame_top, intersection=params.TOP["intersection"], intensity=3)
+        utils.show_img(frame_top, "TOP", ratio=1.5)
+
+        #! CENTER - CENTER
+        frame_center = frame_center[: params.CENTER["div_left"]:params.CENTER["div_right"]+1]
+        left_frame_center = frame_center[:, :frame_center.shape[1] // 2] 
+        right_frame_center = frame_center[:, frame_center.shape[1] // 2:] 
+
+        # Stitch frame
+        frame_center, _, _ = stitch_image.stitch_images(left_frame=left_frame_center, right_frame=right_frame_center, value=value, angle=angle, new_frame_size=new_frame_size_center, correction=correction_center, homography_matrix=homography_matrix_center)
+
+        # Blend frame
+        frame_center = blending.blend_image(mat=frame_center, intersection=params.CENTER["intersection"], intensity=3)
+        utils.show_img(frame_center, "CENTER", ratio=1.5)
+
+        #! BOTTOM - BOTTOM
+        frame_bottom = frame_bottom[: params.CENTER["div_left"]:params.CENTER["div_right"]+1]
+        left_frame_bottom = frame_bottom[:, :frame_bottom.shape[1] // 2]
+        right_frame_bottom = frame_bottom[:, frame_bottom.shape[1] // 2:] 
+
+        # Stitch frame
+        frame_bottom, _, _ = stitch_image.stitch_images(left_frame=left_frame_bottom, right_frame=right_frame_bottom, value=value, angle=angle, new_frame_size=new_frame_size_bottom, correction=correction_bottom, homography_matrix=homography_matrix_bottom)
+
+        # Blend frame
+        frame_bottom = blending.blend_image(mat=frame_bottom, intersection=params.BOTTOM["intersection"], intensity=3)
+        utils.show_img(frame_bottom, "BOTTOM", ratio=1.5)
+
+        #! TOP - CENTER
+
+        #! BOTTOM - CENTER
+
+        #! CENTER - CENTER
+    
+    # Process each video
+    for video in sorted(videos):
+        assert all(isfile(video) for video in videos), f"Unable to locate {video}"
+
 if __name__ == "__main__":
 
     # Setup logger
@@ -238,7 +356,10 @@ if __name__ == "__main__":
     videos = _cut_video()
 
     #? Stitch video
-    _stitch_video(videos=videos)
+    #_stitch_video(videos=videos)
+
+    #? Stitch all
+    _stitch_all_videos(videos=videos)
 
     #? Detection
     #_motion_detection(videos=videos)

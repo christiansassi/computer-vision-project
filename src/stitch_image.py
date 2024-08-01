@@ -138,34 +138,39 @@ def get_new_frame_size_and_matrix(homography_matrix: np.ndarray, left_frame_shap
     return [new_height, new_width], correction, homography_matrix
 
 def stitch_images(
+        # Required
         left_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, 
         right_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, 
+
+        # To be fixed
         value: float = 0.99, 
         angle: float = 2, 
+
+        # Not required
         k: int = 2, 
         ransacReprojThreshold: float = 4,
+
+        # Required
         method: int = cv2.LMEDS,
-        clear_cache: bool = True, 
-        f_matches: bool = True,
+
+        # Cache
+        new_frame_size = None,
+        correction = None,
+        homography_matrix = None,
+
+        # Stitching manual keypoints
         user_left_kp: list = None,
         user_right_kp: list = None,
+
+        # Tuning
         left_shift_dx: int = 0,
         left_shift_dy: int = 0,
-        remove_offset: int = 0) -> tuple[np.ndarray, np.ndarray | None]:
-
-    # Cache
-    function = eval(inspect.stack()[0][3])
-
-    try:
-        new_frame_size, correction, homography_matrix = function.cache
-
-        if clear_cache:
-            new_frame_size, correction, homography_matrix = None, None, None
-
-    except:
-        new_frame_size, correction, homography_matrix = None, None, None
-
-    # If no cache or clear_cache is set to True, recalculate everything
+        remove_offset: int = 0,
+        
+        # Debug
+        f_matches: bool = False) -> tuple[np.ndarray, np.ndarray | None, tuple]:
+    
+    # If no params, recalculate everything
     if all(obj is None for obj in [new_frame_size, correction, homography_matrix]):
 
         # Finding matches between the 2 images and their keypoints
@@ -200,8 +205,6 @@ def stitch_images(
         # Finding size of new frame of stitched images and updating the homography matrix
         new_frame_size, correction, homography_matrix = get_new_frame_size_and_matrix(homography_matrix, right_frame.shape[:2], left_frame.shape[:2])
 
-        function.cache = new_frame_size, correction, homography_matrix
-
     # Finally placing the images upon one another
     stitched_image = cv2.warpPerspective(right_frame, homography_matrix, (new_frame_size[1], new_frame_size[0]))
 
@@ -232,4 +235,4 @@ def stitch_images(
     else:
         frame_matches = None
 
-    return stitched_image, frame_matches
+    return stitched_image, frame_matches, (new_frame_size, correction, homography_matrix)

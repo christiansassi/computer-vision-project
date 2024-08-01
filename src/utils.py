@@ -110,3 +110,36 @@ def black_box_on_image(left_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UM
     right_frame[y:y + right_height + 1, x:] = tuple([0 for _ in range(right_frame[0, 0].shape[0])])
 
     return left_frame, right_frame
+
+def crop_image(image: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat) -> np.ndarray:
+
+    height, width = image.shape[:2]
+
+    center_x = width // 2
+    center_y = height // 2
+
+    image = image[center_y - 878:center_y + 879, center_x - 878:center_x + 879]
+
+    return image
+
+def rotate_and_crop(images: list[cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat]) -> list:
+
+    rotate_and_crop_images = []
+
+    # Iterate over all the files in the folder
+    for i, img in enumerate(images):
+
+        if i == 2:
+            img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+            img = crop_image(img)
+
+        else:
+            img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
+            img = crop_image(img)
+
+        rotate_and_crop_images.append(img)
+
+    img_3 = images[2].copy()
+    rotate_and_crop_images.append(crop_image(cv2.rotate(img_3, cv2.ROTATE_90_COUNTERCLOCKWISE)))
+    
+    return rotate_and_crop_images

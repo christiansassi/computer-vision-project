@@ -3,31 +3,35 @@
 
 VALUE = 0.99 # Value for matching keypoints
 ANGLE = 2 # Angle for matching keypoints
-
-TOP_DIV_LEFT = 899 # Left div
-TOP_DIV_RIGHT = 3194 # Right div
-TOP_COMMON_LEFT = 913 # Leftmost common point
-TOP_COMMON_RIGHT = 231 # Rightmost common point
-TOP_FRAME = 120 # Reference for top frame
-TOP_INTERSECTION = 1147 # Intersection for top frame
-
-CENTER_DIV_LEFT = 1024 # Left div
-CENTER_DIV_RIGHT = 3072 # Right div
-CENTER_COMMON_LEFT = 884 # Leftmost common point
-CENTER_COMMON_RIGHT = 144 # Rightmost common point
-CENTER_FRAME = 120 # Reference for center frame
-CENTER_INTERSECTION = 1024 # Intersection for center frame
-
-BOTTOM_DIV_LEFT = 899 # Left div
-BOTTOM_DIV_RIGHT = 3194 # Right div
-BOTTOM_COMMON_LEFT = 786 # Leftmost common point
-BOTTOM_COMMON_RIGHT = 370 # Rightmost common point
-BOTTOM_FRAME = 120 # Reference for bottom frame
-BOTTOM_INTERSECTION = 1148 # Intersection for bottom frame
-
 FRAMES_DEMO = None # Limit for demo test. None = no demo
-
 BACKGROUND_FRAME = 5376
+
+TOP = {
+    "div_left": 899,
+    "div_right": 3194,
+    "left_width": 913,
+    "right_width": 231, 
+    "frame_number": 120,
+    "intersection": 1147
+}
+
+CENTER = {
+    "div_left": 1024,
+    "div_right": 3072,
+    "left_width": 884,
+    "right_width": 144, 
+    "frame_number": 120,
+    "intersection": 1024
+}
+
+BOTTOM = {
+    "div_left": 899,
+    "div_right": 3194,
+    "left_width": 786,
+    "right_width": 370, 
+    "frame_number": 120,
+    "intersection": 1148
+}
 
 #? USER
 
