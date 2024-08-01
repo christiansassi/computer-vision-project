@@ -8,7 +8,7 @@ import logging
 def filter_matches(matches, left_frame_keypoints, right_frame_keypoints, value, angle):
     # Filter matches based on angles
     _matches = []
-
+    
     # Loop through all the matches
     for index, match in enumerate(matches):
         fp_x, fp_y = left_frame_keypoints[match[0].queryIdx].pt
@@ -32,8 +32,9 @@ def filter_matches(matches, left_frame_keypoints, right_frame_keypoints, value, 
             else:
                 logging.debug(f"Match {index} with inclination: {inclination} and distance {match[0].distance} [REMOVED]\n")
 
-        # Applying ratio test and filtering out the good matches
+    # Applying ratio test and filtering out the good matches
     _matches = [[match1] for match1, match2 in _matches if match1.distance < value * match2.distance]
+
     return _matches
 
 def find_matches(left_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, right_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, k: int) -> tuple[list[list], tuple[cv2.KeyPoint], tuple[cv2.KeyPoint]]:
@@ -59,7 +60,7 @@ def find_matches(left_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, ri
 
     return matches, left_frame_keypoints, right_frame_keypoints
 
-def find_homography(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoint], right_frame_keypoints: tuple[cv2.KeyPoint], ransacReprojThreshold: float) -> np.ndarray:
+def find_homography(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoint], right_frame_keypoints: tuple[cv2.KeyPoint], ransacReprojThreshold: float, method: int) -> np.ndarray:
 
     # Check if matches are more than 4
     assert len(matches) >= 4, "Not enough matches"
@@ -77,7 +78,7 @@ def find_homography(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoin
     right_frame_pts = np.float32(right_frame_pts)
 
     # Finding the homography matrix(transformation matrix).
-    homography_matrix, _ = cv2.findHomography(srcPoints=right_frame_pts, dstPoints=left_frame_pts, method=cv2.LMEDS, ransacReprojThreshold=ransacReprojThreshold)
+    homography_matrix, _ = cv2.findHomography(srcPoints=right_frame_pts, dstPoints=left_frame_pts, method=method, ransacReprojThreshold=ransacReprojThreshold)
 
     return homography_matrix
     
@@ -143,8 +144,14 @@ def stitch_images(
         angle: float = 2, 
         k: int = 2, 
         ransacReprojThreshold: float = 4,
+        method: int = cv2.LMEDS,
         clear_cache: bool = True, 
-        f_matches: bool = True) -> tuple[np.ndarray, np.ndarray | None]:
+        f_matches: bool = True,
+        user_left_kp: list = None,
+        user_right_kp: list = None,
+        left_shift_dx: int = 0,
+        left_shift_dy: int = 0,
+        remove_offset: int = 0) -> tuple[np.ndarray, np.ndarray | None]:
 
     # Cache
     function = eval(inspect.stack()[0][3])
@@ -166,9 +173,29 @@ def stitch_images(
         
         # Filter matches
         matches = filter_matches(matches=matches, left_frame_keypoints=left_frame_keypoints, right_frame_keypoints=right_frame_keypoints, value=value, angle=angle)
-        
+
+        if user_left_kp is not None and user_right_kp is not None:
+            left_frame_keypoints = list(left_frame_keypoints)
+            right_frame_keypoints = list(right_frame_keypoints)
+            
+
+            for i in range(len(user_left_kp)):
+                left_frame_keypoints.append(cv2.KeyPoint(x=user_left_kp[i][0], y=user_left_kp[i][1], size=1))
+                right_frame_keypoints.append(cv2.KeyPoint(x=user_right_kp[i][0], y=user_right_kp[i][1], size=1))
+            
+            left_frame_keypoints = tuple(left_frame_keypoints)
+            right_frame_keypoints = tuple(right_frame_keypoints)
+                                        
+            # Manually adding some matches
+            # [queryIdx, trainIdx, distance]
+            manual_matches = []
+            for i in range(len(user_left_kp)):
+                manual_matches.append([cv2.DMatch(len(left_frame_keypoints)-i-1, len(right_frame_keypoints)-i-1, 0)])
+
+            matches.extend(manual_matches)
+
         # Finding homography matrix
-        homography_matrix = find_homography(matches=matches, left_frame_keypoints=left_frame_keypoints, right_frame_keypoints=right_frame_keypoints, ransacReprojThreshold=ransacReprojThreshold)
+        homography_matrix = find_homography(matches=matches, left_frame_keypoints=left_frame_keypoints, right_frame_keypoints=right_frame_keypoints, ransacReprojThreshold=ransacReprojThreshold, method=method)
         
         # Finding size of new frame of stitched images and updating the homography matrix
         new_frame_size, correction, homography_matrix = get_new_frame_size_and_matrix(homography_matrix, right_frame.shape[:2], left_frame.shape[:2])
@@ -177,8 +204,20 @@ def stitch_images(
 
     # Finally placing the images upon one another
     stitched_image = cv2.warpPerspective(right_frame, homography_matrix, (new_frame_size[1], new_frame_size[0]))
-    stitched_image[correction[1]:correction[1]+left_frame.shape[0], correction[0]:correction[0]+left_frame.shape[1]] = left_frame
-    
+
+    # Determine the region where the left frame will be placed
+    region_x_start = left_shift_dx + correction[0]
+    region_x_end = correction[0] + left_frame.shape[1] + left_shift_dx - remove_offset
+    region_y_start = correction[1] + left_shift_dy
+    region_y_end = correction[1] + left_frame.shape[0] + left_shift_dy
+
+    # Ensure the regions are within bounds
+    region_x_end = min(region_x_end, stitched_image.shape[1])
+    region_y_end = min(region_y_end, stitched_image.shape[0])
+
+    # Place the left frame into the stitched image
+    stitched_image[region_y_start:region_y_end, region_x_start:region_x_end] = left_frame[:region_y_end-region_y_start, :region_x_end-region_x_start]
+
     # If specified, draw matches
     if f_matches:
         frame_matches = cv2.drawMatchesKnn(

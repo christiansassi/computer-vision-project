@@ -95,7 +95,7 @@ def _stitch_video(videos: list[str], live: bool = True) -> None:
         frame = utils.extract_frame(video=video, frame_number=frame_number)
         left_frame, right_frame = utils.split_frame(mat=frame, div_left=div_left, div_right=div_right)
         left_frame, right_frame = utils.black_box_on_image(left_frame=left_frame, right_frame=right_frame, left_width=left_width, right_width=right_width)
-        frame, _ = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle)
+        frame, _ = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle, method=cv2.LMEDS)
         frame = blending.blend_image(mat=frame, intersection=intersection, intensity=3)
         frame = utils.auto_resize(mat=frame, ratio=1)
 
@@ -132,7 +132,7 @@ def _stitch_video(videos: list[str], live: bool = True) -> None:
             right_frame = frame[:, frame.shape[1]//2:]
 
             # Stitch frame
-            frame, _ = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle, clear_cache=False, f_matches=False)
+            frame, _ = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle, method=cv2.LMEDS, clear_cache=False, f_matches=False)
 
             # Blend frame
             frame = blending.blend_image(mat=frame, intersection=intersection, intensity=3)
@@ -141,7 +141,7 @@ def _stitch_video(videos: list[str], live: bool = True) -> None:
             out.write(frame)
 
             # Auto resize the extracted frame
-            frame = utils.auto_resize(mat=frame, ratio=2)
+            frame = utils.auto_resize(mat=frame, ratio=1.5)
 
             if live:
                 # Display the processed frame
@@ -217,7 +217,7 @@ def _motion_detection(videos: list[str]) -> None:
             #! [-] Since we are forced to use a small alpha value, this algorithm becomes similar to normal background subtraction
             #processed_frame, bounding_boxes = motion_detection.adaptive_background_substraction(background=background, mat=frame, alpha=0.05)
 
-            processed_frame = utils.auto_resize(mat=processed_frame, ratio=2)
+            processed_frame = utils.auto_resize(mat=processed_frame, ratio=1.5)
 
             # Display the processed frame
             cv2.imshow(winname="", mat=processed_frame)
@@ -235,10 +235,10 @@ if __name__ == "__main__":
     logger.addHandler(handler)
 
     #? Cut video (just once)
-    #videos = _cut_video()
+    videos = _cut_video()
 
     #? Stitch video
-    #_stitch_video(videos=videos)
+    _stitch_video(videos=videos)
 
     #? Detection
     #_motion_detection(videos=videos)

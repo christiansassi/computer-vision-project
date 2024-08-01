@@ -30,7 +30,7 @@ def auto_resize(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, ratio: flo
         # Calculate new height proportional to the width
         height = width * _mat.shape[0] // _mat.shape[1]
 
-    winsize = (width, height)
+    winsize = (int(width), int(height))
 
     # Resize the image
     _mat = cv2.resize(_mat, winsize)
