@@ -143,3 +143,13 @@ def rotate_and_crop(images: list[cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat
     rotate_and_crop_images.append(crop_image(cv2.rotate(img_3, cv2.ROTATE_90_COUNTERCLOCKWISE)))
     
     return rotate_and_crop_images
+
+def bb(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], left_min: int = None, left_max: int = None, right_min: int = None, right_max: int = None) -> tuple[np.ndarray, np.ndarray]:
+    
+    left_frame[:, :left_min] = 0
+    left_frame[:, left_max:] = 0
+    
+    right_frame[:, :right_min] = 0
+    right_frame[:, right_max:] = 0
+
+    return left_frame, right_frame

@@ -6,6 +6,7 @@ import logging
 
 import cv2
 import numpy as np
+import os
 
 from src import cut_video
 from src import stitch_image
@@ -280,12 +281,54 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
             frame = utils.extract_frame(video=video, frame_number=params.BOTTOM["frame_number"])
             left_frame, right_frame = utils.split_frame(mat=frame, div_left=params.BOTTOM["div_left"], div_right=params.BOTTOM["div_right"])
             left_frame, right_frame = utils.black_box_on_image(left_frame=left_frame, right_frame=right_frame, left_width=params.BOTTOM["left_width"], right_width=params.BOTTOM["right_width"])
-            _, _, stitching_params = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle, method=cv2.LMEDS)
+            frame, _, stitching_params = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle, method=cv2.LMEDS)
             new_frame_size_bottom, correction_bottom, homography_matrix_bottom = stitching_params
 
         else:
             raise Exception("Unknwon video")
+
+    # Load all the images for the final stitching    
+    images = []
+    for filename in os.listdir('videos/blend'):
+        if filename.endswith('.jpg') or filename.endswith('.png'):
+            image_path = os.path.join('videos/blend', filename)
+            img = cv2.imread(image_path)
+            images.append(img)
+
+    # Rotate and crop the images
+    images = utils.rotate_and_crop(images) # [bottom, top, center_for_top, center_for_bottom]
+    cropped_images = {
+        "bottom": images[0],
+        "top": images[1],
+        "center_top": images[2],
+        "center_bottom": images[3]
+    }
+
+    #* TOP_CENTER
+    lf = cropped_images["center_top"].copy()
+    rf = cropped_images["top"].copy()
+
+    lf, rf = utils.bb(left_frame=lf, right_frame=rf, left_min=params.TOP_CENTER["left_min"], left_max=lf.shape[1], right_min=params.TOP_CENTER["right_min"], right_max=params.TOP_CENTER["right_max"])
+
+    _, _, stitching_params = stitch_image.stitch_images(left_frame=lf, right_frame=rf, value = params.TOP_CENTER["value"], angle = params.TOP_CENTER["angle"], 
+                                                        method = cv2.RANSAC, user_left_kp = params.TOP_CENTER["left_frame_kp"], user_right_kp = params.TOP_CENTER["right_frame_kp"])
     
+    new_frame_size_top_center, correction_top_center, homography_matrix_top_center = stitching_params
+
+    #* BOTTOM_CENTER
+    lf = cropped_images["center_bottom"].copy()
+    rf = cropped_images["bottom"].copy()
+
+    lf, rf = utils.bb(left_frame=lf, right_frame=rf, left_min=params.BOTTOM_CENTER["left_min"], left_max=lf.shape[1], right_min=params.BOTTOM_CENTER["right_min"], right_max=params.BOTTOM_CENTER["right_max"])
+
+    _, _, stitching_params = stitch_image.stitch_images(left_frame=lf, right_frame=rf, value = params.BOTTOM_CENTER["value"], angle = params.BOTTOM_CENTER["angle"],
+                                                        method = cv2.RANSAC, user_left_kp = params.BOTTOM_CENTER["left_frame_kp"], user_right_kp = params.BOTTOM_CENTER["right_frame_kp"])
+    
+    new_frame_size_bottom_center, correction_bottom_center, homography_matrix_bottom_center = stitching_params
+
+    #* FINAL
+    
+
     while True:
 
         success_top, frame_top = video_top.read()
@@ -296,21 +339,21 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
             break
         
         #! TOP - TOP
-        frame_top = frame_top[: params.TOP["div_left"]:params.TOP["div_right"]+1]
+        frame_top = frame_top[:, params.TOP["div_left"]:params.TOP["div_right"]+1]
         left_frame_top = frame_top[:, :frame_top.shape[1] // 2] 
         right_frame_top = frame_top[:, frame_top.shape[1] // 2:] 
-
-        utils.show_img([left_frame_top, right_frame_top], ratio=1.5)
 
         # Stitch frame
         frame_top, _, _ = stitch_image.stitch_images(left_frame=left_frame_top, right_frame=right_frame_top, value=value, angle=angle, new_frame_size=new_frame_size_top, correction=correction_top, homography_matrix=homography_matrix_top)
 
         # Blend frame
         frame_top = blending.blend_image(mat=frame_top, intersection=params.TOP["intersection"], intensity=3)
-        utils.show_img(frame_top, "TOP", ratio=1.5)
+
+        # Show frame
+        # utils.show_img(frame_top, "TOP", ratio=1.5)
 
         #! CENTER - CENTER
-        frame_center = frame_center[: params.CENTER["div_left"]:params.CENTER["div_right"]+1]
+        frame_center = frame_center[:, params.CENTER["div_left"]:params.CENTER["div_right"]+1]
         left_frame_center = frame_center[:, :frame_center.shape[1] // 2] 
         right_frame_center = frame_center[:, frame_center.shape[1] // 2:] 
 
@@ -319,10 +362,12 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
 
         # Blend frame
         frame_center = blending.blend_image(mat=frame_center, intersection=params.CENTER["intersection"], intensity=3)
-        utils.show_img(frame_center, "CENTER", ratio=1.5)
+
+        # Show frame
+        # utils.show_img(frame_center, "CENTER", ratio=1.5)
 
         #! BOTTOM - BOTTOM
-        frame_bottom = frame_bottom[: params.CENTER["div_left"]:params.CENTER["div_right"]+1]
+        frame_bottom = frame_bottom[:, params.BOTTOM["div_left"]:params.BOTTOM["div_right"]+1]
         left_frame_bottom = frame_bottom[:, :frame_bottom.shape[1] // 2]
         right_frame_bottom = frame_bottom[:, frame_bottom.shape[1] // 2:] 
 
@@ -331,11 +376,25 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
 
         # Blend frame
         frame_bottom = blending.blend_image(mat=frame_bottom, intersection=params.BOTTOM["intersection"], intensity=3)
-        utils.show_img(frame_bottom, "BOTTOM", ratio=1.5)
+        
+        # Show frame
+        # utils.show_img(frame_bottom, "BOTTOM", ratio=1.5)
 
         #! TOP - CENTER
+        frame_top_center, _, _ = stitch_image.stitch_images(left_frame=cropped_images["center_top"], right_frame=cropped_images["top"], value = params.TOP_CENTER["value"], angle = params.TOP_CENTER["angle"],
+                                                         new_frame_size=new_frame_size_top_center, correction=correction_top_center, homography_matrix=homography_matrix_top_center, 
+                                                         left_shift_dx = params.TOP_CENTER["left_shift_dx"], left_shift_dy = params.TOP_CENTER["left_shift_dy"], remove_offset = params.TOP_CENTER["remove_offset"]) 
+
+        # Show frame
+        # utils.show_img(frame_top_center, "TOP_CENTER", ratio=1.5)
 
         #! BOTTOM - CENTER
+        frame_bottom_center, _, _ = stitch_image.stitch_images(left_frame=cropped_images["center_bottom"], right_frame=cropped_images["bottom"], value = params.BOTTOM_CENTER["value"], angle = params.BOTTOM_CENTER["angle"],
+                                                         new_frame_size=new_frame_size_bottom_center, correction=correction_bottom_center, homography_matrix=homography_matrix_bottom_center, 
+                                                         left_shift_dx = params.BOTTOM_CENTER["left_shift_dx"], left_shift_dy = params.BOTTOM_CENTER["left_shift_dy"], remove_offset = params.BOTTOM_CENTER["remove_offset"])
+        
+        # Show frame
+        # utils.show_img(frame_bottom_center, "BOTTOM_CENTER", ratio=1.5)
 
         #! CENTER - CENTER
     
