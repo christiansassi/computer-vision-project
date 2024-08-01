@@ -3,6 +3,10 @@ import inspect
 import numpy as np
 from shapely.geometry import Polygon, LineString
 
+FRAME_SUBSTRACTION: int = 1
+BACKGROUND_SUBSTRACTION: int = 2
+ADAPTIVE_BACKGROUND_SUBSTRACTION: int = 3
+
 def _filter_contours(contours: tuple, min_contour_area: int) -> tuple:
 
     #! TO BE ADJUSTED WITH THE FINAL STITCHED IMAGE
@@ -88,7 +92,7 @@ def frame_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, tim
 
     return original_frame, bounding_boxes
 
-def background_substraction(background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat) -> tuple[np.ndarray, list[tuple]]:
+def background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat) -> tuple[np.ndarray, list[tuple]]:
 
     # Copy the original frame
     original_frame = mat.copy()
@@ -131,7 +135,7 @@ def background_substraction(background: cv2.typing.MatLike | cv2.cuda.GpuMat | c
 
     return original_frame, bounding_boxes
 
-def adaptive_background_substraction(background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, alpha: float) -> tuple[np.ndarray, list[tuple]]:
+def adaptive_background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, alpha: float) -> tuple[np.ndarray, list[tuple]]:
 
     # Check alpha
     assert alpha >= 0 and alpha <= 1, "Alpha must be a number in the interval [0, 1]"
@@ -183,3 +187,56 @@ def adaptive_background_substraction(background: cv2.typing.MatLike | cv2.cuda.G
     function.background = cv2.addWeighted(frame, alpha, function.background, 1 - alpha, 0)
 
     return original_frame, bounding_boxes
+
+def detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, detection_type: int, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat = None, alpha: float = None) -> tuple[np.ndarray, list[tuple]]:
+
+        if detection_type == FRAME_SUBSTRACTION:
+
+            # Apply frame substraction
+            #* PROS
+            #* [+] None (for this purpose)
+
+            #! CONS
+            #! [-] Stops detecting an object if it stops moving
+            #! [-] A larger window can avoid the previous problem but would negatively impact detection quality
+            #processed_frame, bounding_boxes = frame_substraction(mat=frame, time_window=7)
+
+            # Apply background substraction
+            #* PROS
+            #* [+] Good since the background doesn't change too much (for this purpose)
+            #* [+] Keeps detecting objects even if they stop moving
+
+            #! CONS
+            #! [-] None (for this purpose)
+            
+            return background_substraction(background=background, mat=frame)
+
+        elif detection_type == BACKGROUND_SUBSTRACTION:
+            
+            # Apply background substraction
+            #* PROS
+            #* [+] Good since the background doesn't change too much (for this purpose)
+            #* [+] Keeps detecting objects even if they stop moving
+
+            #! CONS
+            #! [-] None (for this purpose)
+
+            assert background is not None, "Background not defined"
+
+            return background_substraction(background=background, mat=frame)
+
+        elif detection_type == ADAPTIVE_BACKGROUND_SUBSTRACTION:
+            
+            # Apply adaptive substraction
+            #* PROS
+            #* [+] Good for this purpose since the background doesn't change too much
+            #* [+] Compared to normal background subtraction, it adapts to small background changes
+
+            #! CONS
+            #! [-] A large alpha value causes the algorithm to stop detecting objects that have stopped moving
+            #! [-] Since we are forced to use a small alpha value, this algorithm becomes similar to normal background subtraction
+
+            assert background is not None, "Background not defined"
+            assert alpha is not None, "Alpha not defined"
+
+            return adaptive_background_substraction(background=background, mat=frame, alpha=alpha)

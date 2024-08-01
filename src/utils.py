@@ -70,11 +70,13 @@ def extract_frame(video: str | cv2.VideoCapture, frame_number: int) -> np.ndarra
         assert isfile(video), f"'{video}' is not a valid video"
 
         video_capture = cv2.VideoCapture(video)
-        assert video_capture.isOpened(), "An error occours while reading the video"
+        assert video_capture.isOpened(), "An error occours while opening the video"
+
+        video_frame_bak = None
 
     elif isinstance(video, cv2.VideoCapture):
-        
-        video_capture = deepcopy(video)
+
+        video_frame_bak = video.get(cv2.CAP_PROP_POS_FRAMES)
 
     else:
         raise Exception("Invalid video type")
@@ -83,6 +85,9 @@ def extract_frame(video: str | cv2.VideoCapture, frame_number: int) -> np.ndarra
     success, frame = video_capture.read()
 
     assert success, "Could not extract the selected frame"
+
+    if video_frame_bak is not None:
+        video.set(cv2.CAP_PROP_POS_FRAMES, video_frame_bak)
 
     return frame
 

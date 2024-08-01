@@ -5,6 +5,7 @@ import sys
 import logging
 
 import cv2
+import numpy as np
 
 from src import cut_video
 from src import stitch_image
@@ -171,9 +172,11 @@ def _stitch_video(videos: list[str], live: bool = True) -> None:
         out.release()
         video.release()
 
-def _motion_detection(video: str, live: bool = True) -> None:
+def _motion_detection(video: str | cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, live: bool = True) -> str | np.ndarray:
 
-    # TODO
+    #if isinstance(video, (cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat)):
+    #    motion_detection.detection(frame=video, background=background, alpha=alpha)
+
     motion_detection_videos_folder = params.MOTION_DETECTION_VIDEOS_FOLDER
 
     if not exists(motion_detection_videos_folder):
@@ -184,7 +187,7 @@ def _motion_detection(video: str, live: bool = True) -> None:
     
     # Open video
     input_video = cv2.VideoCapture(video)
-    assert input_video.isOpened(), "An error occours while reading the video"
+    assert input_video.isOpened(), "An error occours while opening the video"
 
     # Create output video
     output_video = cv2.VideoWriter(
@@ -207,33 +210,8 @@ def _motion_detection(video: str, live: bool = True) -> None:
         if not success:
             break
         
-        # Apply frame substraction
-        #* PROS
-        #* [+] None (for this purpose)
-
-        #! CONS
-        #! [-] Stops detecting an object if it stops moving
-        #! [-] A larger window can avoid the previous problem but would negatively impact detection quality
-        #processed_frame, bounding_boxes = motion_detection.frame_substraction(mat=frame, time_window=7)
-
-        # Apply background substraction
-        #* PROS
-        #* [+] Good since the background doesn't change too much (for this purpose)
-        #* [+] Keeps detecting objects even if they stop moving
-
-        #! CONS
-        #! [-] None (for this purpose)
-        processed_frame, bounding_boxes = motion_detection.background_substraction(background=background, mat=frame)
-
-        # Apply adaptive substraction
-        #* PROS
-        #* [+] Good for this purpose since the background doesn't change too much
-        #* [+] Compared to normal background subtraction, it adapts to small background changes
-
-        #! CONS
-        #! [-] A large alpha value causes the algorithm to stop detecting objects that have stopped moving
-        #! [-] Since we are forced to use a small alpha value, this algorithm becomes similar to normal background subtraction
-        #processed_frame, bounding_boxes = motion_detection.adaptive_background_substraction(background=background, mat=frame, alpha=0.05)
+        
+        frame, _ = motion_detection.detection(frame=frame, background=background, detection_type=motion_detection.BACKGROUND_SUBSTRACTION)
 
         # Save the processed frame
         output_video.write(frame)
@@ -241,7 +219,7 @@ def _motion_detection(video: str, live: bool = True) -> None:
         if live:
 
             # Display the processed frame
-            utils.show_img(mat=processed_frame, winname="Motion detection")
+            utils.show_img(mat=frame, winname="Motion detection")
 
             if cv2.waitKey(25) & 0xFF == ord("q"):
                 break
@@ -256,6 +234,9 @@ def _motion_detection(video: str, live: bool = True) -> None:
 
     output_video.release()
     input_video.release()
+
+    return join(motion_detection_videos_folder, video_name)
+
 
 def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
     
@@ -286,7 +267,7 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
     for video in videos:
 
         video_capture = cv2.VideoCapture(video)
-        assert video_capture.isOpened(), "An error occours while reading the video"
+        assert video_capture.isOpened(), "An error occours while opening the video"
 
         if "top" in video:
             video_top = video_capture
@@ -301,7 +282,7 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
             reference_top = utils.extract_frame(video=video, frame_number=131)
             left_reference_top, right_reference_top = utils.split_frame(mat=reference_top, div_left=params.TOP["div_left"], div_right=params.TOP["div_right"])
 
-            reference_top, matches, _ = stitch_image.stitch_images(left_frame=left_reference_top, right_frame=right_reference_top, value=value, angle=angle, new_frame_size=new_frame_size_top, correction=correction_top, homography_matrix=homography_matrix_top)
+            reference_top, _, _ = stitch_image.stitch_images(left_frame=left_reference_top, right_frame=right_reference_top, value=value, angle=angle, new_frame_size=new_frame_size_top, correction=correction_top, homography_matrix=homography_matrix_top)
             reference_top = blending.blend_image(mat=reference_top, intersection=params.TOP["intersection"], intensity=3)
 
         elif "center" in video:
@@ -343,7 +324,7 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
     images = [reference_bottom, reference_top, reference_center]
 
     # Rotate and crop the images
-    images = utils.rotate_and_crop(images) # [bottom, top, center_for_top, center_for_bottom]
+    images = utils.rotate_and_crop(images=images) # [bottom, top, center_for_top, center_for_bottom]
     cropped_images = {
         "bottom": images[0],
         "top": images[1],
@@ -372,7 +353,7 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
     rf = cropped_images["bottom"].copy()
 
     lf, rf = utils.bb(left_frame=lf, right_frame=rf, left_min=params.BOTTOM_CENTER["left_min"], left_max=lf.shape[1], right_min=params.BOTTOM_CENTER["right_min"], right_max=params.BOTTOM_CENTER["right_max"])
-    
+
     _, _, stitching_params = stitch_image.stitch_images(left_frame=lf, right_frame=rf, value = params.BOTTOM_CENTER["value"], angle = params.BOTTOM_CENTER["angle"],
                                                         method = cv2.RANSAC, user_left_kp = params.BOTTOM_CENTER["left_frame_kp"], user_right_kp = params.BOTTOM_CENTER["right_frame_kp"])
 
