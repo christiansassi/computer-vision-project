@@ -337,7 +337,7 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
     rf = cropped_images["top"].copy()
 
     lf, rf = utils.bb(left_frame=lf, right_frame=rf, left_min=params.TOP_CENTER["left_min"], left_max=lf.shape[1], right_min=params.TOP_CENTER["right_min"], right_max=params.TOP_CENTER["right_max"])
-
+    
     _, _, stitching_params = stitch_image.stitch_images(left_frame=lf, right_frame=rf, value = params.TOP_CENTER["value"], angle = params.TOP_CENTER["angle"], 
                                                         method = cv2.RANSAC, user_left_kp = params.TOP_CENTER["left_frame_kp"], user_right_kp = params.TOP_CENTER["right_frame_kp"])
 
