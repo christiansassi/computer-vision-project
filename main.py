@@ -47,7 +47,7 @@ def _cut_video() -> list[str]:
 
 def _stitch_video(videos: list[str], live: bool = True) -> None:
 
-    processed_videos_folder = params.PROCESSED_VIDEOS_FOLDER
+    processed_videos_folder = params.STITCHED_VIDEOS_FOLDER
 
     if not exists(processed_videos_folder):
         mkdir(processed_videos_folder)
@@ -241,8 +241,7 @@ if __name__ == "__main__":
     #_stitch_video(videos=videos)
 
     #? Detection
-    videos = [r"videos\processed\bottom.mp4"]
-    _motion_detection(videos=videos)
+    #_motion_detection(videos=videos)
 
     #? Tracking
 

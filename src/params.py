@@ -37,4 +37,4 @@ ROOT = "videos"
 
 ORIGINAL_VIDEOS_FOLDER = join(ROOT, "original")
 CUT_VIDEOS_FOLDER = join(ROOT, "cut")
-PROCESSED_VIDEOS_FOLDER = join(ROOT, "processed")
+STITCHED_VIDEOS_FOLDER = join(ROOT, "stitched")
