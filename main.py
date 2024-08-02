@@ -234,7 +234,7 @@ def _motion_detection(video: str | cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UM
 
     output_video.release()
     input_video.release()
-
+    
     return join(motion_detection_videos_folder, video_name)
 
 
