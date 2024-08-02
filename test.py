@@ -4,6 +4,7 @@ import math
 from typing import Union
 import inspect
 import logging
+from src import utils, params
 
 def filter_matches(matches, left_frame_keypoints, right_frame_keypoints, value, angle):
     # Filter matches based on angles
@@ -138,39 +139,33 @@ def get_new_frame_size_and_matrix(homography_matrix: np.ndarray, left_frame_shap
     return [new_height, new_width], correction, homography_matrix
 
 def stitch_images(
-        # Required
         left_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, 
         right_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, 
-
-        # To be fixed
         value: float = 0.99, 
         angle: float = 2, 
-
-        # Not required
         k: int = 2, 
         ransacReprojThreshold: float = 4,
-
-        # Required
-        method: int = cv2.LMEDS,
-
-        # Cache
-        new_frame_size = None,
-        correction = None,
-        homography_matrix = None,
-
-        # Stitching manual keypoints
+        clear_cache: bool = True, 
+        f_matches: bool = True,
         user_left_kp: list = None,
         user_right_kp: list = None,
-
-        # Tuning
         left_shift_dx: int = 0,
         left_shift_dy: int = 0,
-        remove_offset: int = 0,
-        
-        # Debug
-        f_matches: bool = False) -> tuple[np.ndarray, np.ndarray | None, tuple]:
-    
-    # If no params, recalculate everything
+        remove_offset: int = 0) -> tuple[np.ndarray, np.ndarray | None]:
+
+    # Cache
+    function = eval(inspect.stack()[0][3])
+
+    try:
+        new_frame_size, correction, homography_matrix = function.cache
+
+        if clear_cache:
+            new_frame_size, correction, homography_matrix = None, None, None
+
+    except:
+        new_frame_size, correction, homography_matrix = None, None, None
+
+    # If no cache or clear_cache is set to True, recalculate everything
     if all(obj is None for obj in [new_frame_size, correction, homography_matrix]):
 
         # Finding matches between the 2 images and their keypoints
@@ -200,13 +195,14 @@ def stitch_images(
             matches.extend(manual_matches)
 
         # Finding homography matrix
-        homography_matrix = find_homography(matches=matches, left_frame_keypoints=left_frame_keypoints, right_frame_keypoints=right_frame_keypoints, ransacReprojThreshold=ransacReprojThreshold, method=method)
+        homography_matrix = find_homography(matches=matches, left_frame_keypoints=left_frame_keypoints, right_frame_keypoints=right_frame_keypoints, ransacReprojThreshold=ransacReprojThreshold, method=cv2.RANSAC)
         
         # Finding size of new frame of stitched images and updating the homography matrix
         new_frame_size, correction, homography_matrix = get_new_frame_size_and_matrix(homography_matrix, right_frame.shape[:2], left_frame.shape[:2])
 
-    parameters = (new_frame_size, correction, homography_matrix)
+        function.cache = new_frame_size, correction, homography_matrix
 
+    #! ---- NO TRANSPARENCY ----
     # Finally placing the images upon one another
     stitched_image = cv2.warpPerspective(right_frame, homography_matrix, (new_frame_size[1], new_frame_size[0]))
 
@@ -223,6 +219,36 @@ def stitch_images(
     # Place the left frame into the stitched image
     stitched_image[region_y_start:region_y_end, region_x_start:region_x_end] = left_frame[:region_y_end-region_y_start, :region_x_end-region_x_start]
 
+    #! ---- TRANSPARENCY ----
+    # # Add transparency to the left frame
+    # left_frame_with_alpha = cv2.cvtColor(left_frame, cv2.COLOR_BGR2BGRA)
+    # alpha_channel = np.ones(left_frame.shape[:2], dtype=left_frame.dtype) * 128  # 50% transparency
+    # left_frame_with_alpha[:, :, 3] = alpha_channel
+
+    # # Warp the right frame
+    # stitched_image = cv2.warpPerspective(right_frame, homography_matrix, (new_frame_size[1], new_frame_size[0]))
+
+    # # Ensure the stitched image has an alpha channel
+    # stitched_image_with_alpha = cv2.cvtColor(stitched_image, cv2.COLOR_BGR2BGRA)
+
+    # # Define the region where the left frame will be placed
+    # y1, y2 = correction[1], correction[1] + left_frame.shape[0]
+    # x1, x2 = correction[0], correction[0] + left_frame.shape[1]
+
+    # # Blend the left frame with the stitched image
+    # alpha_left = left_frame_with_alpha[:, :, 3] / 255.0
+    # alpha_right = 1.0 - alpha_left
+
+    # for c in range(0, 3):
+    #     stitched_image_with_alpha[y1:y2, x1:x2, c] = (alpha_left * left_frame_with_alpha[:, :, c] +
+    #                                                   alpha_right * stitched_image_with_alpha[y1:y2, x1:x2, c])
+
+    # # Update the alpha channel
+    # stitched_image_with_alpha[y1:y2, x1:x2, 3] = 255
+    # stitched_image = stitched_image_with_alpha
+    #! ---------------------
+
+
     # If specified, draw matches
     if f_matches:
         frame_matches = cv2.drawMatchesKnn(
@@ -237,4 +263,20 @@ def stitch_images(
     else:
         frame_matches = None
 
-    return stitched_image, frame_matches, parameters
+    return stitched_image, frame_matches
+
+lf = cv2.imread("blend_center.jpg")
+rf = cv2.imread("blend_bottom.jpg")
+
+lf = utils.crop_image(cv2.rotate(lf, cv2.ROTATE_90_COUNTERCLOCKWISE))
+rf = utils.crop_image(cv2.rotate(rf, cv2.ROTATE_90_COUNTERCLOCKWISE))
+
+left_frame = lf.copy()
+right_frame = rf.copy()
+
+lf, rf = utils.bb(left_frame=lf, right_frame=rf, left_min=1200, left_max=lf.shape[1], right_min=100, right_max=800)
+
+_, _ = stitch_images(left_frame=lf, right_frame=rf, angle=(-15, -5), value=0.95, user_left_kp=None, user_right_kp=None)
+final, _ = stitch_images(left_frame=left_frame, right_frame=right_frame, angle=(-15, -5), value=0.95, clear_cache=False, f_matches=False, left_shift_dx=0, left_shift_dy=0, remove_offset=550)
+
+utils.show_img(final)

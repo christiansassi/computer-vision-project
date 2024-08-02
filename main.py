@@ -279,7 +279,7 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
             new_frame_size_top, correction_top, homography_matrix_top = stitching_params
 
             # Extract reference frame for top-center stitching
-            reference_top = utils.extract_frame(video=video, frame_number=131)
+            reference_top = utils.extract_frame(video=video, frame_number=130)
             left_reference_top, right_reference_top = utils.split_frame(mat=reference_top, div_left=params.TOP["div_left"], div_right=params.TOP["div_right"])
 
             reference_top, _, _ = stitch_image.stitch_images(left_frame=left_reference_top, right_frame=right_reference_top, value=value, angle=angle, new_frame_size=new_frame_size_top, correction=correction_top, homography_matrix=homography_matrix_top)
@@ -294,8 +294,8 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
             _, _, stitching_params = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle, method=cv2.LMEDS)
             new_frame_size_center, correction_center, homography_matrix_center = stitching_params
 
-            # Extract reference frame for top-center and bottom-center stitching
-            reference_center = utils.extract_frame(video=video, frame_number=131)
+            # Extract reference frame for center-center stitching
+            reference_center = utils.extract_frame(video=video, frame_number=130)
             left_reference_center, right_reference_center = utils.split_frame(mat=reference_center, div_left=params.CENTER["div_left"], div_right=params.CENTER["div_right"])
 
             reference_center, _, _ = stitch_image.stitch_images(left_frame=left_reference_center, right_frame=right_reference_center, value=value, angle=angle, new_frame_size=new_frame_size_center, correction=correction_center, homography_matrix=homography_matrix_center)
@@ -311,7 +311,7 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
             new_frame_size_bottom, correction_bottom, homography_matrix_bottom = stitching_params
 
             # Extract reference frame for bottom-center stitching
-            reference_bottom = utils.extract_frame(video=video, frame_number=131)
+            reference_bottom = utils.extract_frame(video=video, frame_number=130)
             left_reference_bottom, right_reference_bottom = utils.split_frame(mat=reference_bottom, div_left=params.BOTTOM["div_left"], div_right=params.BOTTOM["div_right"])
 
             reference_bottom, _, _ = stitch_image.stitch_images(left_frame=left_reference_bottom, right_frame=right_reference_bottom, value=value, angle=angle, new_frame_size=new_frame_size_bottom, correction=correction_bottom, homography_matrix=homography_matrix_bottom)
@@ -319,22 +319,27 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
             
         else:
             raise Exception("Unknwon video")
-
+        
     # Load all the images for the final stitching    
-    images = [reference_bottom, reference_top, reference_center]
+    cv2.imwrite("videos/final/bottom.jpg", reference_bottom)
+    cv2.imwrite("videos/final/top.jpg", reference_top)
+    cv2.imwrite("videos/final/center.jpg", reference_center)
+
+    # Read images [bottom, top, center]
+    images = [cv2.imread("videos/final/bottom.jpg"), cv2.imread("videos/final/top.jpg"), cv2.imread("videos/final/center.jpg")]
 
     # Rotate and crop the images
-    images = utils.rotate_and_crop(images=images) # [bottom, top, center_for_top, center_for_bottom]
-    cropped_images = {
-        "bottom": images[0],
-        "top": images[1],
-        "center_top": images[2],
-        "center_bottom": images[3]
-    }
-    
+    bottom = utils.crop_image(cv2.rotate(images[0], cv2.ROTATE_90_COUNTERCLOCKWISE))
+    top = utils.crop_image(cv2.rotate(images[1], cv2.ROTATE_90_COUNTERCLOCKWISE))
+    center_for_top = utils.crop_image(cv2.rotate(images[2], cv2.ROTATE_90_CLOCKWISE))
+    center_for_bottom = utils.crop_image(cv2.rotate(images[2], cv2.ROTATE_90_COUNTERCLOCKWISE))
+
     #! TOP_CENTER
-    lf = cropped_images["center_top"].copy()
-    rf = cropped_images["top"].copy()
+    lf = center_for_top.copy()
+    rf = top.copy()
+
+    left_frame = lf.copy()
+    right_frame = rf.copy()
 
     lf, rf = utils.bb(left_frame=lf, right_frame=rf, left_min=params.TOP_CENTER["left_min"], left_max=lf.shape[1], right_min=params.TOP_CENTER["right_min"], right_max=params.TOP_CENTER["right_max"])
     
@@ -344,32 +349,45 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
     new_frame_size_top_center, correction_top_center, homography_matrix_top_center = stitching_params
 
     # Extract reference frame for the final stitching
-    reference_top_center, _, _ = stitch_image.stitch_images(left_frame=cropped_images["center_top"], right_frame=cropped_images["top"], value = params.TOP_CENTER["value"], angle = params.TOP_CENTER["angle"],
+    reference_top_center, _, _ = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value = params.TOP_CENTER["value"], angle = params.TOP_CENTER["angle"],
                                                          method = cv2.RANSAC, new_frame_size=new_frame_size_top_center, correction=correction_top_center, homography_matrix=homography_matrix_top_center, 
                                                          left_shift_dx = params.TOP_CENTER["left_shift_dx"], left_shift_dy = params.TOP_CENTER["left_shift_dy"], remove_offset = params.TOP_CENTER["remove_offset"]) 
     
+    # utils.show_img(reference_top_center, "TOP_CENTER", ratio=1.5)
+
     #! BOTTOM_CENTER    
-    lf = cropped_images["center_bottom"].copy()
-    rf = cropped_images["bottom"].copy()
+    lf = center_for_bottom.copy()
+    rf = bottom.copy()
 
-    lf, rf = utils.bb(left_frame=lf, right_frame=rf, left_min=params.BOTTOM_CENTER["left_min"], left_max=lf.shape[1], right_min=params.BOTTOM_CENTER["right_min"], right_max=params.BOTTOM_CENTER["right_max"])
+    left_frame = lf.copy()
+    right_frame = rf.copy()
 
-    _, _, stitching_params = stitch_image.stitch_images(left_frame=lf, right_frame=rf, value = params.BOTTOM_CENTER["value"], angle = params.BOTTOM_CENTER["angle"],
-                                                        method = cv2.RANSAC, user_left_kp = params.BOTTOM_CENTER["left_frame_kp"], user_right_kp = params.BOTTOM_CENTER["right_frame_kp"])
+    # lf, rf = utils.bb(left_frame=lf, right_frame=rf, left_min=params.BOTTOM_CENTER["left_min"], left_max=lf.shape[1], right_min=params.BOTTOM_CENTER["right_min"], right_max=params.BOTTOM_CENTER["right_max"])
+
+    _, _, stitching_params = stitch_image.stitch_images(left_frame=lf, right_frame=rf, value = params.BOTTOM_CENTER["value"], angle = params.BOTTOM_CENTER["angle"], 
+                                                        f_matches=False, method = cv2.RANSAC, user_left_kp = None, user_right_kp = None)
 
     new_frame_size_bottom_center, correction_bottom_center, homography_matrix_bottom_center = stitching_params
 
     # Extract reference frame for the final stitching
-    reference_bottom_center, _, _ = stitch_image.stitch_images(left_frame=cropped_images["center_bottom"], right_frame=cropped_images["bottom"], value = params.BOTTOM_CENTER["value"], angle = params.BOTTOM_CENTER["angle"],
+    reference_bottom_center, _, _ = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value = params.BOTTOM_CENTER["value"], angle = params.BOTTOM_CENTER["angle"], f_matches=False,
                                                             method = cv2.RANSAC, new_frame_size=new_frame_size_bottom_center, correction=correction_bottom_center, homography_matrix=homography_matrix_bottom_center, 
-                                                            left_shift_dx = params.BOTTOM_CENTER["left_shift_dx"], left_shift_dy = params.BOTTOM_CENTER["left_shift_dy"], remove_offset = params.BOTTOM_CENTER["remove_offset"])
+                                                            left_shift_dx = 0, left_shift_dy = 0, remove_offset = 550)
+
+    # utils.show_img(reference_bottom_center, "BOTTOM_CENTER", ratio=1.5)
+
+    cv2.imwrite("videos/final/top_center.jpg", reference_top_center)
+    cv2.imwrite("videos/final/bottom_center.jpg", reference_bottom_center)
 
     #! FINAL
-    left_frame = utils.crop_image(cv2.rotate(reference_top_center, cv2.ROTATE_180))
-    right_frame = utils.crop_image(reference_bottom_center)
+    lf = cv2.imread("videos/final/top_center.jpg")
+    rf = cv2.imread("videos/final/bottom_center.jpg")
 
-    lf = left_frame.copy()
-    rf = right_frame.copy()
+    lf = utils.crop_image(cv2.rotate(lf, cv2.ROTATE_180))
+    rf = utils.crop_image(rf)
+
+    left_frame = lf.copy()
+    right_frame = rf.copy()
 
     lf, rf = utils.bb(left_frame=lf, right_frame=rf, left_min=params.FINAL["left_min"], left_max=params.FINAL["left_max"], right_min=params.FINAL["right_min"], right_max=params.FINAL["right_max"])
 
@@ -381,6 +399,17 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
     reference_final, _, _ = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value = params.FINAL["value"], angle = params.FINAL["angle"],
                                                        method = cv2.RANSAC, new_frame_size=new_frame_size_final, correction=correction_final, homography_matrix=homography_matrix_final, 
                                                        left_shift_dx = params.FINAL["left_shift_dx"], left_shift_dy = params.FINAL["left_shift_dy"], remove_offset = params.FINAL["remove_offset"]) 
+    # utils.show_img(reference_final, "FINAL", ratio=1.5)
+
+    # Create a new video object to save each frame during each interaction
+    # Saving all the frames in a list and then saving them is memory-consuming (lots of GBs of RAM)
+    # Therefore, this solution is better
+    output_video = join(processed_videos_folder, "final.mp4")
+
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    fps = 23
+    frame_height, frame_width, _ = frame.shape
+    out = cv2.VideoWriter(output_video, fourcc, fps, (frame_width, frame_height))
 
     while True:
 
@@ -390,8 +419,8 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
 
         if success_top + success_center + success_bottom != 3:
             break
-        
-        #! TOP - TOP
+
+        #! TOP
         frame_top = frame_top[:, params.TOP["div_left"]:params.TOP["div_right"]+1]
         left_frame_top = frame_top[:, :frame_top.shape[1] // 2] 
         right_frame_top = frame_top[:, frame_top.shape[1] // 2:] 
@@ -402,10 +431,7 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
         # Blend frame
         frame_top = blending.blend_image(mat=frame_top, intersection=params.TOP["intersection"], intensity=3)
 
-        # Show frame
-        # utils.show_img(frame_top, "TOP", ratio=1.5)
-
-        #! CENTER - CENTER
+        #! CENTER
         frame_center = frame_center[:, params.CENTER["div_left"]:params.CENTER["div_right"]+1]
         left_frame_center = frame_center[:, :frame_center.shape[1] // 2] 
         right_frame_center = frame_center[:, frame_center.shape[1] // 2:] 
@@ -416,10 +442,7 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
         # Blend frame
         frame_center = blending.blend_image(mat=frame_center, intersection=params.CENTER["intersection"], intensity=3)
 
-        # Show frame
-        # utils.show_img(frame_center, "CENTER", ratio=1.5)
-
-        #! BOTTOM - BOTTOM
+        #! BOTTOM
         frame_bottom = frame_bottom[:, params.BOTTOM["div_left"]:params.BOTTOM["div_right"]+1]
         left_frame_bottom = frame_bottom[:, :frame_bottom.shape[1] // 2]
         right_frame_bottom = frame_bottom[:, frame_bottom.shape[1] // 2:] 
@@ -429,23 +452,23 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
 
         # Blend frame
         frame_bottom = blending.blend_image(mat=frame_bottom, intersection=params.BOTTOM["intersection"], intensity=3)
-        
-        # Show frame
-        # utils.show_img(frame_bottom, "BOTTOM", ratio=1.5)
 
-        images = [reference_bottom, reference_top, reference_center]
+        #!
+        cv2.imwrite("videos/final/bottom.jpg", frame_bottom)
+        cv2.imwrite("videos/final/top.jpg", frame_top)
+        cv2.imwrite("videos/final/center.jpg", frame_center)
+
+        # Read images [bottom, top, center]
+        images = [cv2.imread("videos/final/bottom.jpg"), cv2.imread("videos/final/top.jpg"), cv2.imread("videos/final/center.jpg")]
 
         # Rotate and crop the images
-        images = utils.rotate_and_crop(images) # [bottom, top, center_for_top, center_for_bottom]
-        cropped_images = {
-            "bottom": images[0],
-            "top": images[1],
-            "center_top": images[2],
-            "center_bottom": images[3]
-        } 
+        bottom = utils.crop_image(cv2.rotate(images[0], cv2.ROTATE_90_COUNTERCLOCKWISE))
+        top = utils.crop_image(cv2.rotate(images[1], cv2.ROTATE_90_COUNTERCLOCKWISE))
+        center_for_top = utils.crop_image(cv2.rotate(images[2], cv2.ROTATE_90_CLOCKWISE))
+        center_for_bottom = utils.crop_image(cv2.rotate(images[2], cv2.ROTATE_90_COUNTERCLOCKWISE))
 
         #! TOP - CENTER
-        frame_top_center, _, _ = stitch_image.stitch_images(left_frame=cropped_images["center_top"], right_frame=cropped_images["top"], value = params.TOP_CENTER["value"], angle = params.TOP_CENTER["angle"],
+        frame_top_center, _, _ = stitch_image.stitch_images(left_frame=center_for_top, right_frame=top, value = params.TOP_CENTER["value"], angle = params.TOP_CENTER["angle"],
                                                          new_frame_size=new_frame_size_top_center, correction=correction_top_center, homography_matrix=homography_matrix_top_center, 
                                                          left_shift_dx = params.TOP_CENTER["left_shift_dx"], left_shift_dy = params.TOP_CENTER["left_shift_dy"], remove_offset = params.TOP_CENTER["remove_offset"]) 
 
@@ -453,20 +476,37 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
         # utils.show_img(frame_top_center, "TOP_CENTER", ratio=1.5)
 
         #! BOTTOM - CENTER
-        frame_bottom_center, _, _ = stitch_image.stitch_images(left_frame=cropped_images["center_bottom"], right_frame=cropped_images["bottom"], value = params.BOTTOM_CENTER["value"], angle = params.BOTTOM_CENTER["angle"],
+        frame_bottom_center, _, _ = stitch_image.stitch_images(left_frame=center_for_bottom, right_frame=bottom, value = params.BOTTOM_CENTER["value"], angle = params.BOTTOM_CENTER["angle"],
                                                          new_frame_size=new_frame_size_bottom_center, correction=correction_bottom_center, homography_matrix=homography_matrix_bottom_center, 
                                                          left_shift_dx = params.BOTTOM_CENTER["left_shift_dx"], left_shift_dy = params.BOTTOM_CENTER["left_shift_dy"], remove_offset = params.BOTTOM_CENTER["remove_offset"])
         
         # Show frame
         # utils.show_img(frame_bottom_center, "BOTTOM_CENTER", ratio=1.5)
 
+        cv2.imwrite("videos/final/top_center.jpg", frame_top_center)
+        cv2.imwrite("videos/final/bottom_center.jpg", frame_bottom_center)
+
         #! FINAL
-        frame_final, _, _ = stitch_image.stitch_images(left_frame=cv2.rotate(frame_top_center, cv2.ROTATE_180), right_frame=frame_bottom_center, value = params.FINAL["value"], angle = params.FINAL["angle"],
+        left_frame = cv2.imread("videos/final/top_center.jpg")
+        right_frame = cv2.imread("videos/final/bottom_center.jpg")
+
+        left_frame = utils.crop_image(cv2.rotate(left_frame, cv2.ROTATE_180))
+        right_frame = utils.crop_image(right_frame)
+
+        frame_final, _, _ = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value = params.FINAL["value"], angle = params.FINAL["angle"],
                                                          new_frame_size=new_frame_size_final, correction=correction_final, homography_matrix=homography_matrix_final, 
                                                          left_shift_dx = params.FINAL["left_shift_dx"], left_shift_dy = params.FINAL["left_shift_dy"], remove_offset = params.FINAL["remove_offset"])
 
         # Show frame
-        utils.show_img(frame_final, "FINAL", ratio=1.5)
+        frame_final = frame_final[300:-300, 150:-150]
+        # cv2.imwrite("videos/final/final.jpg", frame_final)
+
+        cv2.imshow(winname="", mat=cv2.resize(frame_final, (frame_final.shape[1]//2, frame_final.shape[0]//2)))
+
+        if cv2.waitKey(25) & 0xFF == ord("q"):
+            break
+
+    cv2.destroyAllWindows()
 
     # Process each video
     for video in sorted(videos):

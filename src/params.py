@@ -4,7 +4,7 @@
 VALUE = 0.99 # Value for matching keypoints
 ANGLE = 2 # Angle for matching keypoints
 FRAMES_DEMO = None # Limit for demo test. None = no demo
-BACKGROUND_FRAME = 5376
+BACKGROUND_FRAME = 5376 # Background reference for background motion detection algorithms
 
 TOP = {
     "div_left": 899,
@@ -52,7 +52,7 @@ BOTTOM_CENTER = {
     "left_shift_dx": 0,
     "left_shift_dy": 0,
     "remove_offset": 550,
-    "angle": (-15, -8),
+    "angle": (-15, -5),
     "value": 0.95,
     "left_min": 1200,
     "right_min": 100,
