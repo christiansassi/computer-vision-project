@@ -53,7 +53,7 @@ def _cut_video() -> list[str]:
 
 def _stitch_video(videos: list[str], live: bool = True) -> None:
 
-    processed_videos_folder = params.STITCHED_VIDEOS_FOLDER
+    processed_videos_folder = params.FINAL_STITCHED_VIDEOS_FOLDER
 
     if not exists(processed_videos_folder):
         mkdir(processed_videos_folder)
@@ -240,7 +240,7 @@ def _motion_detection(video: str | cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UM
 
 def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
     
-    processed_videos_folder = params.STITCHED_VIDEOS_FOLDER
+    processed_videos_folder = params.FINAL_STITCHED_VIDEOS_FOLDER
 
     if not exists(processed_videos_folder):
         mkdir(processed_videos_folder)

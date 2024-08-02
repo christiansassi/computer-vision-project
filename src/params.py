@@ -81,4 +81,4 @@ ROOT = "videos"
 
 ORIGINAL_VIDEOS_FOLDER = join(ROOT, "original")
 CUT_VIDEOS_FOLDER = join(ROOT, "cut")
-STITCHED_VIDEOS_FOLDER = join(ROOT, "stitched")
+FINAL_STITCHED_VIDEOS_FOLDER = join(ROOT, "final")
