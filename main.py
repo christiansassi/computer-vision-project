@@ -51,193 +51,6 @@ def _cut_video() -> list[str]:
     
     return videos
 
-def _stitch_video(videos: list[str], live: bool = True) -> None:
-
-    processed_videos_folder = params.FINAL_STITCHED_VIDEOS_FOLDER
-
-    if not exists(processed_videos_folder):
-        mkdir(processed_videos_folder)
-
-    # Process each video
-    for video in sorted(videos):
-        assert all(isfile(video) for video in videos), f"Unable to locate {video}"
-        
-        video_name = basename(video)
-        video_label = video_name.replace(".mp4", "")
-
-        # Some frames give best keypoints and descriptors.
-        # We use one of them to cache the homography_matrix and the associated parameters in order to use them later
-        if "top" in video:
-            div_left = params.TOP_DIV_LEFT
-            div_right = params.TOP_DIV_RIGHT
-            frame_number = params.TOP_FRAME
-            left_width = params.TOP_COMMON_LEFT
-            right_width = params.TOP_COMMON_RIGHT
-            intersection = params.TOP_INTERSECTION
-
-        elif "center" in video:
-            div_left = params.CENTER_DIV_LEFT
-            div_right = params.CENTER_DIV_RIGHT
-            frame_number = params.CENTER_FRAME
-            left_width = params.CENTER_COMMON_LEFT
-            right_width = params.CENTER_COMMON_RIGHT
-            intersection = params.CENTER_INTERSECTION
-
-        elif "bottom" in video:
-            div_left = params.BOTTOM_DIV_LEFT
-            div_right = params.BOTTOM_DIV_RIGHT
-            frame_number = params.BOTTOM_FRAME
-            left_width = params.BOTTOM_COMMON_LEFT
-            right_width = params.BOTTOM_COMMON_RIGHT
-            intersection = params.BOTTOM_INTERSECTION
-
-        else:
-            raise Exception("Unknwon video")
-
-        value = params.VALUE
-        angle = params.ANGLE
-
-        # Pre-process the selected frame and cache the results
-        frame = utils.extract_frame(video=video, frame_number=frame_number)
-        left_frame, right_frame = utils.split_frame(mat=frame, div_left=div_left, div_right=div_right)
-        left_frame, right_frame = utils.black_box_on_image(left_frame=left_frame, right_frame=right_frame, left_width=left_width, right_width=right_width)
-        frame, _ = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle, method=cv2.LMEDS)
-        frame = blending.blend_image(mat=frame, intersection=intersection, intensity=3)
-        frame = utils.auto_resize(mat=frame, ratio=1)
-
-        # Open video
-        video = cv2.VideoCapture(video)
-        assert video.isOpened(), "An error occours while reading the video"
-
-        # Set start at frame with index equals to 0
-        video.set(cv2.CAP_PROP_POS_FRAMES, 0)
-
-        frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT)) if params.FRAMES_DEMO is None else params.FRAMES_DEMO
-        processed_frames = 0
-
-        # Create a new video object to save each frame during each interaction
-        # Saving all the frames in a list and then saving them is memory-consuming (lots of GBs of RAM)
-        # Therefore, this solution is better
-        output_video = join(processed_videos_folder, video_name)
-
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        fps = int(video.get(cv2.CAP_PROP_FPS))
-        frame_height, frame_width, _ = frame.shape
-        out = cv2.VideoWriter(output_video, fourcc, fps, (frame_width, frame_height))
-
-        while True:
-            
-            # Extract frame by frame
-            success, frame = video.read()
-
-            if not success:
-                break
-
-            frame = frame[:, div_left:div_right+1]
-            left_frame = frame[:, 0:frame.shape[1]//2]
-            right_frame = frame[:, frame.shape[1]//2:]
-
-            # Stitch frame
-            frame, _ = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value=value, angle=angle, method=cv2.LMEDS, clear_cache=False, f_matches=False)
-
-            # Blend frame
-            frame = blending.blend_image(mat=frame, intersection=intersection, intensity=3)
-
-            # Save the processed frame
-            out.write(frame)
-
-            # Auto resize the extracted frame
-            frame = utils.auto_resize(mat=frame, ratio=1.5)
-
-            if live:
-                # Display the processed frame
-                cv2.imshow(winname="", mat=frame)
-
-                if cv2.waitKey(25) & 0xFF == ord("q"):
-                    break
-
-            # Display log info
-            processed_frames = processed_frames + 1
-
-            logger.info(f"Processing {video_label} view: {int(processed_frames * 100 / frames)}% ({processed_frames} / {frames})\r")
-            sys.stdout.flush()
-
-            if processed_frames == frames:
-                break
-        
-        # Cleanup
-        if live:
-            cv2.destroyAllWindows()
-
-        out.release()
-        video.release()
-
-def _motion_detection(video: str | cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, live: bool = True) -> str | np.ndarray:
-
-    #if isinstance(video, (cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat)):
-    #    motion_detection.detection(frame=video, background=background, alpha=alpha)
-
-    motion_detection_videos_folder = params.MOTION_DETECTION_VIDEOS_FOLDER
-
-    if not exists(motion_detection_videos_folder):
-        mkdir(motion_detection_videos_folder)
-
-    video_name = basename(video)
-    video_label = video_name.replace(".mp4", "")
-    
-    # Open video
-    input_video = cv2.VideoCapture(video)
-    assert input_video.isOpened(), "An error occours while opening the video"
-
-    # Create output video
-    output_video = cv2.VideoWriter(
-        join(motion_detection_videos_folder, video_name), # Specify output file
-        cv2.VideoWriter_fourcc(*"mp4v"), # Specify video type
-        int(input_video.get(cv2.CAP_PROP_FPS)), # Same fps of the original video
-        frame.shape[:2] # Specify shape (width, height)
-    )
-    
-    # Necessary for algorithms using background as reference
-    background = utils.extract_frame(video=input_video, frame_number=params.BACKGROUND_FRAME)
-
-    max_frames = int(input_video.get(cv2.CAP_PROP_FRAME_COUNT)) if params.FRAMES_DEMO is None else params.FRAMES_DEMO
-
-    while True:
-
-        # Extract frame by frame
-        success, frame = input_video.read()
-
-        if not success:
-            break
-        
-        
-        frame, _ = motion_detection.detection(frame=frame, background=background, detection_type=motion_detection.BACKGROUND_SUBSTRACTION)
-
-        # Save the processed frame
-        output_video.write(frame)
-        
-        if live:
-
-            # Display the processed frame
-            utils.show_img(mat=frame, winname="Motion detection")
-
-            if cv2.waitKey(25) & 0xFF == ord("q"):
-                break
-        
-        # Interrupt motion detection in case of max_frames < total number of frames in the video
-        if input_video.get(cv2.CAP_PROP_POS_FRAMES) == max_frames:
-            break
-
-    # Cleanup
-    if live:
-        cv2.destroyAllWindows()
-
-    output_video.release()
-    input_video.release()
-    
-    return join(motion_detection_videos_folder, video_name)
-
-
 def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
     
     processed_videos_folder = params.FINAL_STITCHED_VIDEOS_FOLDER
@@ -321,12 +134,12 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
             raise Exception("Unknwon video")
         
     # Load all the images for the final stitching    
-    cv2.imwrite("videos/final/bottom.jpg", reference_bottom)
-    cv2.imwrite("videos/final/top.jpg", reference_top)
-    cv2.imwrite("videos/final/center.jpg", reference_center)
+    reference_bottom = utils.jpg_compression(mat=reference_bottom)
+    reference_top = utils.jpg_compression(mat=reference_top)
+    reference_center = utils.jpg_compression(mat=reference_center)
 
     # Read images [bottom, top, center]
-    images = [cv2.imread("videos/final/bottom.jpg"), cv2.imread("videos/final/top.jpg"), cv2.imread("videos/final/center.jpg")]
+    images = [reference_bottom, reference_top, reference_center]
 
     # Rotate and crop the images
     bottom = utils.crop_image(cv2.rotate(images[0], cv2.ROTATE_90_COUNTERCLOCKWISE))
@@ -353,16 +166,12 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
                                                          method = cv2.RANSAC, new_frame_size=new_frame_size_top_center, correction=correction_top_center, homography_matrix=homography_matrix_top_center, 
                                                          left_shift_dx = params.TOP_CENTER["left_shift_dx"], left_shift_dy = params.TOP_CENTER["left_shift_dy"], remove_offset = params.TOP_CENTER["remove_offset"]) 
     
-    # utils.show_img(reference_top_center, "TOP_CENTER", ratio=1.5)
-
     #! BOTTOM_CENTER    
     lf = center_for_bottom.copy()
     rf = bottom.copy()
 
     left_frame = lf.copy()
     right_frame = rf.copy()
-
-    # lf, rf = utils.bb(left_frame=lf, right_frame=rf, left_min=params.BOTTOM_CENTER["left_min"], left_max=lf.shape[1], right_min=params.BOTTOM_CENTER["right_min"], right_max=params.BOTTOM_CENTER["right_max"])
 
     _, _, stitching_params = stitch_image.stitch_images(left_frame=lf, right_frame=rf, value = params.BOTTOM_CENTER["value"], angle = params.BOTTOM_CENTER["angle"], 
                                                         f_matches=False, method = cv2.RANSAC, user_left_kp = None, user_right_kp = None)
@@ -374,14 +183,12 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
                                                             method = cv2.RANSAC, new_frame_size=new_frame_size_bottom_center, correction=correction_bottom_center, homography_matrix=homography_matrix_bottom_center, 
                                                             left_shift_dx = 0, left_shift_dy = 0, remove_offset = 550)
 
-    # utils.show_img(reference_bottom_center, "BOTTOM_CENTER", ratio=1.5)
-
-    cv2.imwrite("videos/final/top_center.jpg", reference_top_center)
-    cv2.imwrite("videos/final/bottom_center.jpg", reference_bottom_center)
-
     #! FINAL
-    lf = cv2.imread("videos/final/top_center.jpg")
-    rf = cv2.imread("videos/final/bottom_center.jpg")
+    reference_top_center = utils.jpg_compression(mat=reference_top_center)
+    reference_bottom_center = utils.jpg_compression(mat=reference_bottom_center)
+
+    lf = reference_top_center.copy()
+    rf = reference_bottom_center.copy()
 
     lf = utils.crop_image(cv2.rotate(lf, cv2.ROTATE_180))
     rf = utils.crop_image(rf)
@@ -399,17 +206,19 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
     reference_final, _, _ = stitch_image.stitch_images(left_frame=left_frame, right_frame=right_frame, value = params.FINAL["value"], angle = params.FINAL["angle"],
                                                        method = cv2.RANSAC, new_frame_size=new_frame_size_final, correction=correction_final, homography_matrix=homography_matrix_final, 
                                                        left_shift_dx = params.FINAL["left_shift_dx"], left_shift_dy = params.FINAL["left_shift_dy"], remove_offset = params.FINAL["remove_offset"]) 
-    # utils.show_img(reference_final, "FINAL", ratio=1.5)
 
-    # Create a new video object to save each frame during each interaction
     # Saving all the frames in a list and then saving them is memory-consuming (lots of GBs of RAM)
     # Therefore, this solution is better
-    output_video = join(processed_videos_folder, "final.mp4")
+    # Create output video
 
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    fps = 23
-    frame_height, frame_width, _ = frame.shape
-    out = cv2.VideoWriter(output_video, fourcc, fps, (frame_width, frame_height))
+    assert len(set([int(video_top.get(cv2.CAP_PROP_FPS)), int(video_center.get(cv2.CAP_PROP_FPS)), int(video_bottom.get(cv2.CAP_PROP_FPS))])), "Input videos have different frame rates"
+
+    output_video = cv2.VideoWriter(
+        join(processed_videos_folder, "final.mp4"), # Specify output file
+        cv2.VideoWriter_fourcc(*"mp4v"), # Specify video type
+        int(video_top.get(cv2.CAP_PROP_FPS)), # Same fps of the original video
+        (1425, 2358) # Specify shape (width, height)
+    )
 
     while True:
 
@@ -454,12 +263,12 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
         frame_bottom = blending.blend_image(mat=frame_bottom, intersection=params.BOTTOM["intersection"], intensity=3)
 
         #!
-        cv2.imwrite("videos/final/bottom.jpg", frame_bottom)
-        cv2.imwrite("videos/final/top.jpg", frame_top)
-        cv2.imwrite("videos/final/center.jpg", frame_center)
+        frame_bottom = utils.jpg_compression(mat=frame_bottom)
+        frame_top = utils.jpg_compression(mat=frame_top)
+        frame_center = utils.jpg_compression(mat=frame_center)
 
         # Read images [bottom, top, center]
-        images = [cv2.imread("videos/final/bottom.jpg"), cv2.imread("videos/final/top.jpg"), cv2.imread("videos/final/center.jpg")]
+        images = [frame_bottom, frame_top, frame_center]
 
         # Rotate and crop the images
         bottom = utils.crop_image(cv2.rotate(images[0], cv2.ROTATE_90_COUNTERCLOCKWISE))
@@ -472,23 +281,14 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
                                                          new_frame_size=new_frame_size_top_center, correction=correction_top_center, homography_matrix=homography_matrix_top_center, 
                                                          left_shift_dx = params.TOP_CENTER["left_shift_dx"], left_shift_dy = params.TOP_CENTER["left_shift_dy"], remove_offset = params.TOP_CENTER["remove_offset"]) 
 
-        # Show frame
-        # utils.show_img(frame_top_center, "TOP_CENTER", ratio=1.5)
-
         #! BOTTOM - CENTER
         frame_bottom_center, _, _ = stitch_image.stitch_images(left_frame=center_for_bottom, right_frame=bottom, value = params.BOTTOM_CENTER["value"], angle = params.BOTTOM_CENTER["angle"],
                                                          new_frame_size=new_frame_size_bottom_center, correction=correction_bottom_center, homography_matrix=homography_matrix_bottom_center, 
                                                          left_shift_dx = params.BOTTOM_CENTER["left_shift_dx"], left_shift_dy = params.BOTTOM_CENTER["left_shift_dy"], remove_offset = params.BOTTOM_CENTER["remove_offset"])
         
-        # Show frame
-        # utils.show_img(frame_bottom_center, "BOTTOM_CENTER", ratio=1.5)
-
-        cv2.imwrite("videos/final/top_center.jpg", frame_top_center)
-        cv2.imwrite("videos/final/bottom_center.jpg", frame_bottom_center)
-
         #! FINAL
-        left_frame = cv2.imread("videos/final/top_center.jpg")
-        right_frame = cv2.imread("videos/final/bottom_center.jpg")
+        left_frame = utils.jpg_compression(mat=frame_top_center)
+        right_frame = utils.jpg_compression(mat=frame_bottom_center)
 
         left_frame = utils.crop_image(cv2.rotate(left_frame, cv2.ROTATE_180))
         right_frame = utils.crop_image(right_frame)
@@ -497,20 +297,94 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
                                                          new_frame_size=new_frame_size_final, correction=correction_final, homography_matrix=homography_matrix_final, 
                                                          left_shift_dx = params.FINAL["left_shift_dx"], left_shift_dy = params.FINAL["left_shift_dy"], remove_offset = params.FINAL["remove_offset"])
 
-        # Show frame
+        # Crop
         frame_final = frame_final[300:-300, 150:-150]
-        # cv2.imwrite("videos/final/final.jpg", frame_final)
 
-        cv2.imshow(winname="", mat=cv2.resize(frame_final, (frame_final.shape[1]//2, frame_final.shape[0]//2)))
+        # Save processed frame
+        output_video.write(frame_final)
 
-        if cv2.waitKey(25) & 0xFF == ord("q"):
+        # Show frame
+        if live:
+
+            cv2.imshow(winname="", mat=cv2.resize(frame_final, (frame_final.shape[1]//2, frame_final.shape[0]//2)))
+
+            if cv2.waitKey(25) & 0xFF == ord("q"):
+                break
+    
+    # Cleanup
+    if live:
+        cv2.destroyAllWindows()
+
+    output_video.release()
+
+    video_top.release()
+    video_center.release()
+    video_bottom.release()
+
+def _motion_detection(video: str | cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, live: bool = True) -> str | np.ndarray:
+
+    #if isinstance(video, (cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat)):
+    #    motion_detection.detection(frame=video, background=background, alpha=alpha)
+
+    motion_detection_videos_folder = params.MOTION_DETECTION_VIDEOS_FOLDER
+
+    if not exists(motion_detection_videos_folder):
+        mkdir(motion_detection_videos_folder)
+
+    video_name = basename(video)
+    video_label = video_name.replace(".mp4", "")
+    
+    # Open video
+    input_video = cv2.VideoCapture(video)
+    assert input_video.isOpened(), "An error occours while opening the video"
+
+    # Create output video
+    output_video = cv2.VideoWriter(
+        join(motion_detection_videos_folder, video_name), # Specify output file
+        cv2.VideoWriter_fourcc(*"mp4v"), # Specify video type
+        int(input_video.get(cv2.CAP_PROP_FPS)), # Same fps of the original video
+        frame.shape[:2] # Specify shape (width, height)
+    )
+    
+    # Necessary for algorithms using background as reference
+    background = utils.extract_frame(video=input_video, frame_number=params.BACKGROUND_FRAME)
+
+    max_frames = int(input_video.get(cv2.CAP_PROP_FRAME_COUNT)) if params.FRAMES_DEMO is None else params.FRAMES_DEMO
+
+    while True:
+
+        # Extract frame by frame
+        success, frame = input_video.read()
+
+        if not success:
+            break
+        
+        
+        frame, _ = motion_detection.detection(frame=frame, background=background, detection_type=motion_detection.BACKGROUND_SUBSTRACTION)
+
+        # Save the processed frame
+        output_video.write(frame)
+        
+        if live:
+
+            # Display the processed frame
+            utils.show_img(mat=frame, winname="Motion detection")
+
+            if cv2.waitKey(25) & 0xFF == ord("q"):
+                break
+        
+        # Interrupt motion detection in case of max_frames < total number of frames in the video
+        if input_video.get(cv2.CAP_PROP_POS_FRAMES) == max_frames:
             break
 
-    cv2.destroyAllWindows()
+    # Cleanup
+    if live:
+        cv2.destroyAllWindows()
 
-    # Process each video
-    for video in sorted(videos):
-        assert all(isfile(video) for video in videos), f"Unable to locate {video}"
+    output_video.release()
+    input_video.release()
+    
+    return join(motion_detection_videos_folder, video_name)
 
 if __name__ == "__main__":
 

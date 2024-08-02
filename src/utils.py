@@ -168,3 +168,6 @@ def bb(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_f
     right_frame[:, right_max:] = 0
 
     return left_frame, right_frame
+
+def jpg_compression(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat) -> np.ndarray:
+    return cv2.imdecode(cv2.imencode('.jpg', mat, [int(cv2.IMWRITE_JPEG_QUALITY), 95])[1], cv2.IMREAD_UNCHANGED)
