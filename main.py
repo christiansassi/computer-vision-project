@@ -169,17 +169,10 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
     #! TOP_CENTER -> Stitch top and center views
 
     #TODO better define this
-    left_frame, right_frame = utils.bb(
-        left_frame=center_for_top, 
-        right_frame=top, 
-        left_min=params.TOP_CENTER["left_min"], 
-        left_max=center_for_top.shape[1], 
-        right_min=params.TOP_CENTER["right_min"], 
-        right_max=params.TOP_CENTER["right_max"]
-    )
+    left_frame, right_frame = utils.bb(left_frame=center_for_top, right_frame=top, left_min=params.TOP_CENTER["left_min"], left_max=center_for_top.shape[1], right_min=params.TOP_CENTER["right_min"], right_max=params.TOP_CENTER["right_max"])
 
     # Calculate stitching params
-    tmp, _, stitching_params = stitch_image.stitch_images(
+    _, _, stitching_params = stitch_image.stitch_images(
         left_frame=left_frame, 
         right_frame=right_frame, 
         value=params.TOP_CENTER["value"], 
