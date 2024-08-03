@@ -75,8 +75,9 @@ def extract_frame(video: str | cv2.VideoCapture, frame_number: int) -> np.ndarra
         video_frame_bak = None
 
     elif isinstance(video, cv2.VideoCapture):
-
-        video_frame_bak = video.get(cv2.CAP_PROP_POS_FRAMES)
+        
+        video_capture = video
+        video_frame_bak = video_capture.get(cv2.CAP_PROP_POS_FRAMES)
 
     else:
         raise Exception("Invalid video type")
@@ -87,7 +88,7 @@ def extract_frame(video: str | cv2.VideoCapture, frame_number: int) -> np.ndarra
     assert success, "Could not extract the selected frame"
 
     if video_frame_bak is not None:
-        video.set(cv2.CAP_PROP_POS_FRAMES, video_frame_bak)
+        video_capture.set(cv2.CAP_PROP_POS_FRAMES, video_frame_bak)
 
     return frame
 
@@ -137,37 +138,18 @@ def crop_image(image: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat) -> np.nda
 
     return image
 
-def rotate_and_crop(images: list[cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat]) -> list:
-
-    rotate_and_crop_images = []
-
-    # Iterate over all the files in the folder
-    for i, img in enumerate(images):
-
-        if i == 2:
-            img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
-            img = crop_image(img)
-
-        else:
-            img = cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE)
-            img = crop_image(img)
-
-        rotate_and_crop_images.append(img)
-
-    img_3 = images[2].copy()
-    rotate_and_crop_images.append(crop_image(cv2.rotate(img_3, cv2.ROTATE_90_COUNTERCLOCKWISE)))
+def bb(left_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, right_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, left_min: int = None, left_max: int = None, right_min: int = None, right_max: int = None) -> tuple[np.ndarray, np.ndarray]:
     
-    return rotate_and_crop_images
+    _left_frame = left_frame.copy()
+    _right_frame = right_frame.copy()
 
-def bb(left_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], right_frame: Union[cv2.typing.MatLike, cv2.cuda.GpuMat, cv2.UMat], left_min: int = None, left_max: int = None, right_min: int = None, right_max: int = None) -> tuple[np.ndarray, np.ndarray]:
+    _left_frame[:, :left_min] = 0
+    _left_frame[:, left_max:] = 0
     
-    left_frame[:, :left_min] = 0
-    left_frame[:, left_max:] = 0
-    
-    right_frame[:, :right_min] = 0
-    right_frame[:, right_max:] = 0
+    _right_frame[:, :right_min] = 0
+    _right_frame[:, right_max:] = 0
 
-    return left_frame, right_frame
+    return _left_frame, _right_frame
 
 def jpg_compression(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat) -> np.ndarray:
     return cv2.imdecode(cv2.imencode('.jpg', mat, [int(cv2.IMWRITE_JPEG_QUALITY), 95])[1], cv2.IMREAD_UNCHANGED)
