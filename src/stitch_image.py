@@ -1,11 +1,9 @@
 import cv2
 import numpy as np  
 import math
-from typing import Union
-import inspect
 import logging
 
-def filter_matches(matches, left_frame_keypoints, right_frame_keypoints, value, angle):
+def filter_matches(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoint], right_frame_keypoints: tuple[cv2.KeyPoint], value: float, angle: float) -> list[list]:
     # Filter matches based on angles
     _matches = []
     
@@ -142,7 +140,7 @@ def stitch_images(
         left_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, 
         right_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, 
 
-        # To be fixed
+        # Ok
         value: float = 0.99, 
         angle: float = 2, 
 
@@ -153,12 +151,12 @@ def stitch_images(
         # Required
         method: int = cv2.LMEDS,
 
-        # Cache
+        # Stitching params
         new_frame_size = None,
         correction = None,
         homography_matrix = None,
 
-        # Stitching manual keypoints
+        # Stitching keypoints
         user_left_kp: list = None,
         user_right_kp: list = None,
 

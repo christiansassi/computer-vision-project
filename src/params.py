@@ -38,7 +38,7 @@ TOP_CENTER = {
     "right_frame_kp": [(1037, 388), (966, 666), (754, 552), (1002, 1224), (1104, 1306), (1006, 1454), (1098, 1560), (402, 1570)],
     "left_shift_dx": 15,
     "left_shift_dy": 15,
-    "remove_offset": 780, #780
+    "remove_offset": 780,
     "angle": (-8, -5),
     "value": 0.95,
     "left_min": 950,
@@ -51,7 +51,7 @@ BOTTOM_CENTER = {
     "right_frame_kp": None,
     "left_shift_dx": 0,
     "left_shift_dy": 0,
-    "remove_offset": 550, #550
+    "remove_offset": 550,
     "angle": (-15, -5),
     "value": 0.95,
     "left_min": 1200,

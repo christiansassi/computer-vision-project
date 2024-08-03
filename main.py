@@ -1,5 +1,5 @@
 from os import listdir, mkdir
-from os.path import join, exists, isfile, basename
+from os.path import join, exists, basename
 import sys
 
 import logging
@@ -207,7 +207,6 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
         right_frame=bottom, 
         value=params.BOTTOM_CENTER["value"], 
         angle=params.BOTTOM_CENTER["angle"], 
-        f_matches=False, 
         method=cv2.RANSAC,
         left_shift_dx=params.BOTTOM_CENTER["left_shift_dx"], 
         left_shift_dy= params.BOTTOM_CENTER["left_shift_dy"], 
@@ -276,6 +275,8 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
         frameSize=(1425, 2358) # Specify shape (width, height)
     )
 
+    max_frames = min([int(video.get(cv2.CAP_PROP_FRAME_COUNT)) for video in [video_top, video_center, video_bottom]]) if params.FRAMES_DEMO is None else params.FRAMES_DEMO
+
     while True:
 
         success_top, frame_top = video_top.read()
@@ -286,9 +287,7 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
             break
 
         #! TOP -> Stitch top
-        frame_top = frame_top[:, params.TOP["div_left"]:params.TOP["div_right"]+1]
-        left_frame_top = frame_top[:, :frame_top.shape[1] // 2] 
-        right_frame_top = frame_top[:, frame_top.shape[1] // 2:] 
+        left_frame_top, right_frame_top = utils.split_frame(mat=frame_top, div_left=params.TOP["div_left"], div_right=params.TOP["div_right"])
 
         # Stitch frame
         frame_top, _, _ = stitch_image.stitch_images(
@@ -305,9 +304,7 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
         frame_top = blending.blend_image(mat=frame_top, intersection=params.TOP["intersection"], intensity=3)
 
         #! CENTER -> Stitch center
-        frame_center = frame_center[:, params.CENTER["div_left"]:params.CENTER["div_right"]+1]
-        left_frame_center = frame_center[:, :frame_center.shape[1] // 2] 
-        right_frame_center = frame_center[:, frame_center.shape[1] // 2:] 
+        left_frame_center, right_frame_center = utils.split_frame(mat=frame_center, div_left=params.CENTER["div_left"], div_right=params.CENTER["div_right"])
 
         # Stitch frame
         frame_center, _, _ = stitch_image.stitch_images(
@@ -324,9 +321,7 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
         frame_center = blending.blend_image(mat=frame_center, intersection=params.CENTER["intersection"], intensity=3)
 
         #! BOTTOM -> Stitch bottom
-        frame_bottom = frame_bottom[:, params.BOTTOM["div_left"]:params.BOTTOM["div_right"]+1]
-        left_frame_bottom = frame_bottom[:, :frame_bottom.shape[1] // 2]
-        right_frame_bottom = frame_bottom[:, frame_bottom.shape[1] // 2:] 
+        left_frame_bottom, right_frame_bottom = utils.split_frame(mat=frame_bottom, div_left=params.BOTTOM["div_left"], div_right=params.BOTTOM["div_right"])
 
         # Stitch frame
         frame_bottom, _, _ = stitch_image.stitch_images(
@@ -452,7 +447,11 @@ def _stitch_all_videos(videos: list[str], live: bool = True) -> None:
 
             if cv2.waitKey(25) & 0xFF == ord("q"):
                 break
-    
+        
+        # Interrupt processing in case of max_frames < total number of frames in the video
+        if video_top.get(cv2.CAP_PROP_POS_FRAMES) == max_frames:
+            break
+
     # Cleanup
     if live:
         cv2.destroyAllWindows()
