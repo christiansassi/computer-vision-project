@@ -2,6 +2,7 @@ import cv2
 import inspect
 import numpy as np
 from shapely.geometry import Polygon, LineString
+from src import utils
 
 FRAME_SUBSTRACTION: int = 1
 BACKGROUND_SUBSTRACTION: int = 2
@@ -10,10 +11,10 @@ ADAPTIVE_BACKGROUND_SUBSTRACTION: int = 3
 def _filter_contours(contours: tuple, min_contour_area: int) -> tuple:
 
     #! TO BE ADJUSTED WITH THE FINAL STITCHED IMAGE
-    a = (316, 96)
-    b = (1410, 57)
-    c = (1516, 1080)
-    d = (367, 1124)
+    a = (34, 62)
+    b = (2308, 78)
+    c = (2232, 1332)
+    d = (48, 1254)
 
     intercepted_contours = []
 
@@ -101,12 +102,12 @@ def background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat
     _background = background.copy()
     background_gray = cv2.cvtColor(_background, cv2.COLOR_BGR2GRAY)
     background_gray = cv2.GaussianBlur(background_gray, (15, 15), 0)
-
+    
     # Convert frame to gray and apply gaussian blur
     frame = mat.copy()
     frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     frame_gray = cv2.GaussianBlur(frame_gray, (15, 15), 0)
-
+    
     #cv2.imwrite("blur.jpg", frame_gray)
     #exit(0)
 
@@ -114,7 +115,7 @@ def background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat
     diff = cv2.absdiff(background_gray, frame_gray)
 
     # Apply a threshold to get the binary image
-    _, thresh = cv2.threshold(diff, 25, 255, cv2.THRESH_BINARY)
+    _, thresh = cv2.threshold(diff, 13, 255, cv2.THRESH_BINARY)
     
     # Dilate the thresholded image to fill in holes
     thresh = cv2.dilate(thresh, None, iterations=2)
@@ -133,7 +134,7 @@ def background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat
 
         cv2.rectangle(original_frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
-    return original_frame, bounding_boxes
+    return original_frame, bounding_boxes, thresh
 
 def adaptive_background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, alpha: float) -> tuple[np.ndarray, list[tuple]]:
 
