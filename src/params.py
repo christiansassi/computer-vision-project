@@ -3,8 +3,8 @@
 
 VALUE = 0.99 # Value for matching keypoints
 ANGLE = 2 # Angle for matching keypoints
-FRAMES_DEMO = None # Limit for demo test. None = no demo
 BACKGROUND_FRAME = 5376 # Background reference for background motion detection algorithms
+VOLLEYBALL_FIELD = [(76, 139), (2274, 102), (2173, 1304), (67, 1228)] # Volleyball field coordinates in the final stitched image
 
 TOP = {
     "div_left": 899,
@@ -81,4 +81,5 @@ ROOT = "videos"
 
 ORIGINAL_VIDEOS_FOLDER = join(ROOT, "original")
 CUT_VIDEOS_FOLDER = join(ROOT, "cut")
-FINAL_STITCHED_VIDEOS_FOLDER = join(ROOT, "final")
+PROCESSED_VIDEOS_FOLDER = join(ROOT, "processed")
+PROCESSED_VIDEO = join(PROCESSED_VIDEOS_FOLDER, "processed.mp4")
