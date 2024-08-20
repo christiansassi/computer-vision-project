@@ -419,7 +419,7 @@ def _stitching(frame_top: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, frame
 
 def _motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, detection_type: int, time_window: int = 1, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat = None, alpha: float = None, reset: bool = False) -> tuple[np.ndarray, list[tuple]]:
 
-    assert detection_type in [1,2,3], "Invalid motion detection type"
+    assert detection_type in [1,2,3, 4], "Invalid motion detection type"
 
     if detection_type == motion_detection.FRAME_SUBSTRACTION:
 
@@ -458,7 +458,7 @@ def _motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, de
 
         return motion_detection.background_substraction(mat=frame, background=background)
 
-    else:
+    elif detection_type == motion_detection.ADAPTIVE_BACKGROUND_SUBSTRACTION:
 
         # Apply adaptive substraction
         #* PROS
@@ -471,10 +471,28 @@ def _motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, de
 
         assert background is not None, "Invalid background"
 
-        assert isinstance(alpha, float), "Invalid alpha"
+        assert isinstance(alpha, (int, float)), "Invalid alpha"
         assert alpha >= 0 and alpha <= 1, "Alpha must be a number in the interval [0, 1]"
 
         return motion_detection.adaptive_background_substraction(mat=frame, background=background, alpha=alpha, reset=reset)
+
+    elif detection_type == motion_detection.GAUSSIAN_AVERAGE:
+
+        # Apply gaussian average motion detection
+        #* PROS
+        #* [+] Good for this purpose since the background doesn't change too much
+        #* [+] It adapts to small background changes
+
+        #! CONS
+        #! [-] Because the environment remains relatively stable (with minimal likelihood of scene changes such as illumination shifts), we opt for a smaller alpha value. 
+        #!     However, using a smaller alpha makes this approach resemble background subtraction techniques in its behavior
+
+        assert background is not None, "Invalid background"
+
+        assert isinstance(alpha, (int, float)), "Invalid alpha"
+        assert alpha >= 0 and alpha <= 1, "Alpha must be a number in the interval [0, 1]"
+
+        return motion_detection.gaussian_average(mat=frame, background=background, alpha=alpha, reset=reset)
 
 
 
@@ -535,7 +553,8 @@ def process_videos(videos: list[str], live: bool = True) -> None:
                 extracted_frame_bottom = utils.extract_frame(video=video_bottom, frame_number=params.BACKGROUND_FRAME)
                 background = _stitching(frame_top=extracted_frame_top, frame_center=extracted_frame_center, frame_bottom=extracted_frame_bottom, videos=videos)
 
-            motion_detection_frame, motion_detection_bounding_boxes = _motion_detection(frame=stitched_frame, detection_type=motion_detection.BACKGROUND_SUBSTRACTION, background=background)
+            #motion_detection_frame, motion_detection_bounding_boxes = _motion_detection(frame=stitched_frame, detection_type=motion_detection.BACKGROUND_SUBSTRACTION, background=background)
+            motion_detection_frame, motion_detection_bounding_boxes = _motion_detection(frame=stitched_frame, detection_type=motion_detection.GAUSSIAN_AVERAGE, background=background, alpha=0.001)
 
             processed_frame = motion_detection_frame
 
