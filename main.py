@@ -14,12 +14,13 @@ from src import utils
 from src import params
 from src import blending
 from src import motion_detection
+from src import motion_tracking
 
 from src import wrapped_logging_handler
 
 # Select
 MOTION_DETECTION = True
-MOTION_TRACKING = False
+MOTION_TRACKING = True
 TEAM_IDENTIFICATION = False
 BALL_TRACKING = False
 
@@ -553,14 +554,15 @@ def process_videos(videos: list[str], live: bool = True) -> None:
                 extracted_frame_bottom = utils.extract_frame(video=video_bottom, frame_number=params.BACKGROUND_FRAME)
                 background = _stitching(frame_top=extracted_frame_top, frame_center=extracted_frame_center, frame_bottom=extracted_frame_bottom, videos=videos)
 
-            #motion_detection_frame, motion_detection_bounding_boxes = _motion_detection(frame=stitched_frame, detection_type=motion_detection.BACKGROUND_SUBSTRACTION, background=background)
-            motion_detection_frame, motion_detection_bounding_boxes = _motion_detection(frame=stitched_frame, detection_type=motion_detection.GAUSSIAN_AVERAGE, background=background, alpha=0.001)
+            motion_detection_frame, motion_detection_bounding_boxes = _motion_detection(frame=stitched_frame, detection_type=motion_detection.BACKGROUND_SUBSTRACTION, background=background)
 
             processed_frame = motion_detection_frame
 
         #! Motion tracking
-        # if MOTION_TRACKING:
-        #     pass
+        if MOTION_TRACKING and MOTION_DETECTION:
+            motion_tracking_frame, motion_tracking_results = motion_tracking.particle_filtering(mat=processed_frame, bounding_boxes=motion_detection_bounding_boxes)
+
+            processed_frame = motion_tracking_frame
 
         #! Team identification
         # if TEAM_IDENTIFICATION:
