@@ -10,7 +10,7 @@ BACKGROUND_SUBSTRACTION: int = 2
 ADAPTIVE_BACKGROUND_SUBSTRACTION: int = 3
 GAUSSIAN_AVERAGE: int = 4
 
-def __filter_contours(contours: tuple, min_contour_area: int) -> tuple:
+def __filter_contours(contours: tuple, min_area: int = None, max_area: int = None) -> tuple:
 
     intercepted_contours = []
 
@@ -20,9 +20,13 @@ def __filter_contours(contours: tuple, min_contour_area: int) -> tuple:
     for contour in contours:
         
         # Ignore small areas
-        if cv2.contourArea(contour) < min_contour_area:
+        if min_area is not None and cv2.contourArea(contour) < min_area:
             continue
         
+        # Ignore big areas
+        if max_area is not None and cv2.contourArea(contour) > max_area:
+            continue
+
         # Ignore non-intersecting contours 
         if not polygon.intersects(LineString(contour.squeeze())):
             continue
@@ -45,7 +49,7 @@ def __filter_contours(contours: tuple, min_contour_area: int) -> tuple:
 
     return tuple(intercepted_contours)
 
-def frame_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, time_window: int = 1, reset: bool = False) -> tuple[np.ndarray, list[tuple]]:
+def frame_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, time_window: int = 1, min_area: int = None, max_area: int = None, reset: bool = False) -> tuple[np.ndarray, list[tuple]]:
 
     # Copy the original frame
     original_frame = mat.copy()
@@ -85,7 +89,7 @@ def frame_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, tim
 
     # Extract contours
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contours = __filter_contours(contours=contours, min_contour_area=6500)
+    contours = __filter_contours(contours=contours, min_area=min_area, max_area=max_area)
 
     bounding_boxes = []
 
@@ -106,7 +110,7 @@ def frame_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, tim
 
     return original_frame, bounding_boxes
 
-def background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat) -> tuple[np.ndarray, list[tuple]]:
+def background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, min_area: int = None, max_area: int = None) -> tuple[np.ndarray, list[tuple]]:
 
     # Copy the original frame
     original_frame = mat.copy()
@@ -135,7 +139,7 @@ def background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat
 
     # Extract contours
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contours = __filter_contours(contours=contours, min_contour_area=4000)
+    contours = __filter_contours(contours=contours, min_area=min_area, max_area=max_area)
 
     bounding_boxes = []
 
@@ -149,7 +153,7 @@ def background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat
 
     return original_frame, bounding_boxes
 
-def adaptive_background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, alpha: float, reset: bool = False) -> tuple[np.ndarray, list[tuple]]:
+def adaptive_background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, alpha: float, min_area: int = None, max_area: int = None, reset: bool = False) -> tuple[np.ndarray, list[tuple]]:
 
     # Check alpha
     assert alpha >= 0 and alpha <= 1, "Alpha must be a number in the interval [0, 1]"
@@ -189,7 +193,7 @@ def adaptive_background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat |
 
     # Extract contours
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contours = __filter_contours(contours=contours, min_contour_area=4000)
+    contours = __filter_contours(contours=contours, min_area=min_area, max_area=max_area)
 
     bounding_boxes = []
 
@@ -206,7 +210,7 @@ def adaptive_background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat |
 
     return original_frame, bounding_boxes
 
-def gaussian_average(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, alpha: float, reset: bool = False) -> tuple[np.ndarray, list[tuple]]:
+def gaussian_average(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, alpha: float, min_area: int = None, max_area: int = None, reset: bool = False) -> tuple[np.ndarray, list[tuple]]:
 
     # Check alpha
     assert alpha >= 0 and alpha <= 1, "Alpha must be a number in the interval [0, 1]"
@@ -249,7 +253,7 @@ def gaussian_average(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, backg
 
     # Extract contours
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contours = __filter_contours(contours=contours, min_contour_area=4000)
+    contours = __filter_contours(contours=contours, min_area=min_area, max_area=max_area)
 
     bounding_boxes = []
 

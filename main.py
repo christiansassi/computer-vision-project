@@ -439,7 +439,7 @@ def __stitching(frame_top: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, fram
     # Crop
     return stitched_frame[300:-300, 150:-150]
 
-def __motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, detection_type: int, time_window: int = 1, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat = None, alpha: float = None, reset: bool = False) -> tuple[np.ndarray, list[tuple]]:
+def __motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, detection_type: int, time_window: int = 1, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat = None, alpha: float = None, min_area: int = None, max_area: int = None, reset: bool = False) -> tuple[np.ndarray, list[tuple]]:
 
     assert detection_type in [1,2,3, 4], "Invalid motion detection type"
 
@@ -464,7 +464,21 @@ def __motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, d
         assert isinstance(time_window, int), "Invalid time window"
         assert time_window > 0, "Invalid time window"
 
-        return motion_detection.frame_substraction(mat=frame, time_window=time_window, reset=reset)
+        args = {
+            "mat": frame,
+            "time_window": time_window,
+            "reset": reset
+        }
+
+        if min_area is not None:
+            assert isinstance(min_area, int) and min_area > 0, "Invalid minimum area"
+            args["min_area"] = min_area
+        
+        if max_area is not None:
+            assert isinstance(max_area, int) and max_area > 0, "Invalid maximum area"
+            args["max_area"] = max_area
+
+        return motion_detection.frame_substraction(**args)
 
     elif detection_type == motion_detection.BACKGROUND_SUBSTRACTION:
 
@@ -478,7 +492,20 @@ def __motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, d
 
         assert background is not None, "Invalid background"
 
-        return motion_detection.background_substraction(mat=frame, background=background)
+        args = {
+            "mat": frame,
+            "background": background,
+        }
+
+        if min_area is not None:
+            assert isinstance(min_area, int) and min_area > 0, "Invalid minimum area"
+            args["min_area"] = min_area
+
+        if max_area is not None:
+            assert isinstance(max_area, int) and max_area > 0, "Invalid maximum area"
+            args["max_area"] = max_area
+
+        return motion_detection.background_substraction(**args)
 
     elif detection_type == motion_detection.ADAPTIVE_BACKGROUND_SUBSTRACTION:
 
@@ -496,7 +523,22 @@ def __motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, d
         assert isinstance(alpha, (int, float)), "Invalid alpha"
         assert alpha >= 0 and alpha <= 1, "Alpha must be a number in the interval [0, 1]"
 
-        return motion_detection.adaptive_background_substraction(mat=frame, background=background, alpha=alpha, reset=reset)
+        args = {
+            "mat": frame,
+            "background": background,
+            "alpha": alpha,
+            "reset": reset,
+        }
+
+        if min_area is not None:
+            assert isinstance(min_area, int) and min_area > 0, "Invalid minimum area"
+            args["min_area"] = min_area
+
+        if max_area is not None:
+            assert isinstance(max_area, int) and max_area > 0, "Invalid maximum area"
+            args["max_area"] = max_area
+
+        return motion_detection.adaptive_background_substraction(**args)
 
     elif detection_type == motion_detection.GAUSSIAN_AVERAGE:
 
@@ -514,7 +556,22 @@ def __motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, d
         assert isinstance(alpha, (int, float)), "Invalid alpha"
         assert alpha >= 0 and alpha <= 1, "Alpha must be a number in the interval [0, 1]"
 
-        return motion_detection.gaussian_average(mat=frame, background=background, alpha=alpha, reset=reset)
+        args = {
+            "mat": frame,
+            "background": background,
+            "alpha": alpha,
+            "reset": reset,
+        }
+
+        if min_area is not None:
+            assert isinstance(min_area, int) and min_area > 0, "Invalid minimum area"
+            args["min_area"] = min_area
+
+        if max_area is not None:
+            assert isinstance(max_area, int) and max_area > 0, "Invalid maximum area"
+            args["max_area"] = max_area
+
+        return motion_detection.gaussian_average(**args)
 
 
 
@@ -557,11 +614,23 @@ def process_videos(videos: list[str], live: bool = True) -> None:
 
     total_frames_number = int(video_top.get(cv2.CAP_PROP_FRAME_COUNT))
 
+    # Fast forward the videos
+    skip_to = 400
+    video_top.set(cv2.CAP_PROP_POS_FRAMES, skip_to)
+    video_center.set(cv2.CAP_PROP_POS_FRAMES, skip_to)
+    video_bottom.set(cv2.CAP_PROP_POS_FRAMES, skip_to)
+
     output_video = None
     
-    background = None
+    # Extract background
+    extracted_frame_top = utils.extract_frame(video=video_top, frame_number=params.BACKGROUND_FRAME)
+    extracted_frame_center = utils.extract_frame(video=video_center, frame_number=params.BACKGROUND_FRAME)
+    extracted_frame_bottom = utils.extract_frame(video=video_bottom, frame_number=params.BACKGROUND_FRAME)
+    background = __stitching(frame_top=extracted_frame_top, frame_center=extracted_frame_center, frame_bottom=extracted_frame_bottom, videos=videos)
 
     # Process videos
+    logger.info(f"\033[32mPress Ctrl+C to exit\033[0m\n")
+
     while True:
 
         success_top, frame_top = video_top.read()
@@ -572,7 +641,7 @@ def process_videos(videos: list[str], live: bool = True) -> None:
             break
         
         logger.info(f"Processing {int(video_top.get(cv2.CAP_PROP_POS_FRAMES))} / {total_frames_number}\r")
-    
+
         #! Stitching
         stitched_frame = __stitching(frame_top=frame_top, frame_center=frame_center, frame_bottom=frame_bottom, videos=videos)
         
@@ -580,22 +649,12 @@ def process_videos(videos: list[str], live: bool = True) -> None:
 
         #! Motion detection
         if MOTION_DETECTION:
-            
-            # Extract background (only once)
-            if background is None:
-                extracted_frame_top = utils.extract_frame(video=video_top, frame_number=params.BACKGROUND_FRAME)
-                extracted_frame_center = utils.extract_frame(video=video_center, frame_number=params.BACKGROUND_FRAME)
-                extracted_frame_bottom = utils.extract_frame(video=video_bottom, frame_number=params.BACKGROUND_FRAME)
-                background = __stitching(frame_top=extracted_frame_top, frame_center=extracted_frame_center, frame_bottom=extracted_frame_bottom, videos=videos)
-
-            motion_detection_frame, motion_detection_bounding_boxes = __motion_detection(frame=stitched_frame, detection_type=motion_detection.BACKGROUND_SUBSTRACTION, background=background)
-
+            motion_detection_frame, motion_detection_bounding_boxes = __motion_detection(frame=stitched_frame, detection_type=motion_detection.BACKGROUND_SUBSTRACTION, background=background, min_area=4000)
             #processed_frame = motion_detection_frame
 
         #! Motion tracking
         if MOTION_TRACKING and MOTION_DETECTION:
             motion_tracking_frame, motion_tracking_results = motion_tracking.particle_filtering(mat=processed_frame, bounding_boxes=motion_detection_bounding_boxes)
-
             processed_frame = motion_tracking_frame
 
         #! Team identification
@@ -603,8 +662,11 @@ def process_videos(videos: list[str], live: bool = True) -> None:
         #     pass
 
         #! Ball tracking
-        # if BALL_TRACKING:
-        #     pass
+        if BALL_TRACKING:
+            motion_detection_frame, motion_detection_bounding_boxes = __motion_detection(frame=stitched_frame, detection_type=motion_detection.BACKGROUND_SUBSTRACTION, background=background, min_area=1000, max_area=2500)
+            #processed_frame = motion_detection_frame
+
+            pass
 
         # Show processed video
         if live:
@@ -623,8 +685,6 @@ def process_videos(videos: list[str], live: bool = True) -> None:
                 fps=int(min(video_top.get(cv2.CAP_PROP_FPS), video_center.get(cv2.CAP_PROP_FPS), video_bottom.get(cv2.CAP_PROP_FPS))), # Same fps of the original video
                 frameSize=processed_frame.shape[:2][::-1] # Specify shape (width, height)
             )
-
-            logger.info(f"\033[32mPress Ctrl+C to exit\033[0m\n")
 
             OUTPUT_VIDEO = output_video
 
