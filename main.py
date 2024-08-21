@@ -7,7 +7,6 @@ import inspect
 
 import cv2
 import numpy as np
-from shapely.geometry import Polygon
 
 # Clear screen
 if os.name == "nt":
@@ -619,14 +618,14 @@ def process_videos(videos: list[str], live: bool = True) -> None:
     video_top.set(cv2.CAP_PROP_POS_FRAMES, skip_to)
     video_center.set(cv2.CAP_PROP_POS_FRAMES, skip_to)
     video_bottom.set(cv2.CAP_PROP_POS_FRAMES, skip_to)
-
-    output_video = None
     
     # Extract background
     extracted_frame_top = utils.extract_frame(video=video_top, frame_number=params.BACKGROUND_FRAME)
     extracted_frame_center = utils.extract_frame(video=video_center, frame_number=params.BACKGROUND_FRAME)
     extracted_frame_bottom = utils.extract_frame(video=video_bottom, frame_number=params.BACKGROUND_FRAME)
     background = __stitching(frame_top=extracted_frame_top, frame_center=extracted_frame_center, frame_bottom=extracted_frame_bottom, videos=videos)
+
+    output_video = None
 
     # Process videos
     logger.info(f"\033[32mPress Ctrl+C to exit\033[0m\n")
