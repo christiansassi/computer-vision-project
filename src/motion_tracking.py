@@ -8,7 +8,7 @@ from src import params
 
 class ParticleFilter:
 
-    COLORS_HISTORY = [distinctipy.get_rgb256(color) for color in distinctipy.get_colors(n_colors=25, pastel_factor=0.5)]
+    COLORS_HISTORY = [distinctipy.get_rgb256(color)[::-1] for color in distinctipy.get_colors(n_colors=25, pastel_factor=0.5)]
     COLORS = COLORS_HISTORY.copy()
 
     def __init__(self, width: int, height: int, number_of_particles: int, bounding_box: tuple) -> None:
@@ -242,7 +242,7 @@ def particle_filtering(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, bou
         # Draw bounding box
         cv2.rectangle(frame, (x, y), (x + w, y + h), particle_system.get_color(), 2)
 
-        # Draw the estimated position, centroid, and particles on the frame
-        cv2.arrowedLine(frame, origin, estimated, (0, 255, 0), 4, tipLength=1)
+        # Draw the arrow associated to the estimated position
+        cv2.arrowedLine(frame, origin, estimated, particle_system.get_color(), 4, tipLength=1)
 
     return frame, results

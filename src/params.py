@@ -4,7 +4,10 @@
 VALUE = 0.99 # Value for matching keypoints
 ANGLE = 2 # Angle for matching keypoints
 BACKGROUND_FRAME = 5376 # Background reference for background motion detection algorithms
-VOLLEYBALL_FIELD = [(76, 139), (2274, 102), (2173, 1304), (67, 1228)] # Volleyball field coordinates in the final stitched image
+
+# Volleyball field mask
+VOLLEYBALL_FIELD = [(76, 139), (1271, 90), (2274, 102), (2250, 649), (2234, 828), (2173, 1304), (67, 1228), (51, 719), (76, 139)]
+VOLLEYBALL_FIELD_TOLERANCE = 0
 
 NUMBER_OF_PARTICLES = 500
 MEASUREMENT_NOISE_STD = 50

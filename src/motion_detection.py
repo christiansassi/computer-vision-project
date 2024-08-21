@@ -1,7 +1,7 @@
 import cv2
 import inspect
 import numpy as np
-from shapely.geometry import Polygon, LineString
+from shapely.geometry import Polygon, LineString, Point
 
 from src import params
 
@@ -15,7 +15,7 @@ def __filter_contours(contours: tuple, min_contour_area: int) -> tuple:
     intercepted_contours = []
 
     polygon = Polygon(np.array(params.VOLLEYBALL_FIELD))
-    polygon = polygon.buffer(100)
+    polygon = polygon.buffer(params.VOLLEYBALL_FIELD_TOLERANCE)
 
     for contour in contours:
         
@@ -27,6 +27,20 @@ def __filter_contours(contours: tuple, min_contour_area: int) -> tuple:
         if not polygon.intersects(LineString(contour.squeeze())):
             continue
         
+        # Calculate the percentage of points that intersect the polygon
+        intersecting_points = 0
+
+        for point in contour:
+            point = Point(point)
+
+            if polygon.intersects(point):
+                intersecting_points = intersecting_points + 1
+        
+        intersecting_points = intersecting_points * 100 / len(contour)
+
+        if intersecting_points < 25:
+            continue
+
         intercepted_contours.append(contour)
 
     return tuple(intercepted_contours)

@@ -7,6 +7,7 @@ import inspect
 
 import cv2
 import numpy as np
+from shapely.geometry import Polygon
 
 # Clear screen
 if os.name == "nt":
@@ -570,10 +571,7 @@ def process_videos(videos: list[str], live: bool = True) -> None:
         if sum([success_top, success_center, success_bottom]) != 3:
             break
         
-        current_frame_number = int(video_top.get(cv2.CAP_PROP_POS_FRAMES))
-
-        if current_frame_number > 0:
-            logger.info(f"Processing {current_frame_number} / {total_frames_number}\r")
+        logger.info(f"Processing {int(video_top.get(cv2.CAP_PROP_POS_FRAMES))} / {total_frames_number}\r")
     
         #! Stitching
         stitched_frame = __stitching(frame_top=frame_top, frame_center=frame_center, frame_bottom=frame_bottom, videos=videos)
