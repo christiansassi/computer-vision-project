@@ -10,7 +10,7 @@ BACKGROUND_SUBSTRACTION: int = 2
 ADAPTIVE_BACKGROUND_SUBSTRACTION: int = 3
 GAUSSIAN_AVERAGE: int = 4
 
-def _filter_contours(contours: tuple, min_contour_area: int) -> tuple:
+def __filter_contours(contours: tuple, min_contour_area: int) -> tuple:
 
     intercepted_contours = []
 
@@ -71,7 +71,7 @@ def frame_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, tim
 
     # Extract contours
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contours = _filter_contours(contours=contours, min_contour_area=6500)
+    contours = __filter_contours(contours=contours, min_contour_area=6500)
 
     bounding_boxes = []
 
@@ -121,7 +121,7 @@ def background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat
 
     # Extract contours
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contours = _filter_contours(contours=contours, min_contour_area=4000)
+    contours = __filter_contours(contours=contours, min_contour_area=4000)
 
     bounding_boxes = []
 
@@ -175,7 +175,7 @@ def adaptive_background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat |
 
     # Extract contours
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contours = _filter_contours(contours=contours, min_contour_area=4000)
+    contours = __filter_contours(contours=contours, min_contour_area=4000)
 
     bounding_boxes = []
 
@@ -235,7 +235,7 @@ def gaussian_average(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, backg
 
     # Extract contours
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contours = _filter_contours(contours=contours, min_contour_area=4000)
+    contours = __filter_contours(contours=contours, min_contour_area=4000)
 
     bounding_boxes = []
 

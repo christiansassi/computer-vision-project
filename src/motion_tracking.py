@@ -49,7 +49,7 @@ class ParticleFilter:
         except:
             pass
 
-    def _update_weights(self, centroid, measurement_noise_std=params.MEASUREMENT_NOISE_STD):
+    def __update_weights(self, centroid, measurement_noise_std=params.MEASUREMENT_NOISE_STD):
 
         # Calculate the distance from the measurement to each particle
         distances = np.linalg.norm(self.particles - centroid, axis=1)
@@ -59,7 +59,7 @@ class ParticleFilter:
         self.weights += 1.e-300  # Avoid division by zero
         self.weights /= np.sum(self.weights)  # Normalize the weights
 
-    def _resample(self):
+    def __resample(self):
         
         cumulative_sum = np.cumsum(self.weights)
         cumulative_sum[-1] = 1.0  # Ensure rounding issues don't affect the resampling
@@ -69,7 +69,7 @@ class ParticleFilter:
         self.particles[:] = self.particles[indexes]
         self.weights.fill(1.0 / self.number_of_particles)
     
-    def _predict(self, stddev=params.STDDEV):
+    def __predict(self, stddev=params.STDDEV):
 
         # Add noise to the particle positions (simulates random motion)
         noise = np.random.normal(0, stddev, size=self.particles.shape)
@@ -79,22 +79,22 @@ class ParticleFilter:
         self.particles[:, 0] = np.clip(self.particles[:, 0], 0, self.width)
         self.particles[:, 1] = np.clip(self.particles[:, 1], 0, self.height)
     
-    def _estimate(self):
+    def __estimate(self):
 
         return np.average(self.particles, weights=self.weights, axis=0)
 
     def step(self, centroid) -> tuple:
 
         # Update particle weights based on the measurement
-        self._update_weights(centroid=centroid)
+        self.__update_weights(centroid=centroid)
         
         # Resample particles based on their weights
-        self._resample()
+        self.__resample()
 
         # Predict the next state of the particles
-        self._predict()
+        self.__predict()
 
-        estimate_position = self._estimate()
+        estimate_position = self.__estimate()
 
         return estimate_position, self.particles.copy()
 

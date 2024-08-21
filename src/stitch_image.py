@@ -3,7 +3,7 @@ import numpy as np
 import math
 import logging
 
-def filter_matches(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoint], right_frame_keypoints: tuple[cv2.KeyPoint], value: float, angle: float) -> list[list]:
+def __filter_matches(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoint], right_frame_keypoints: tuple[cv2.KeyPoint], value: float, angle: float) -> list[list]:
     # Filter matches based on angles
     _matches = []
     
@@ -35,7 +35,7 @@ def filter_matches(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoint
 
     return _matches
 
-def find_matches(left_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, right_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, k: int) -> tuple[list[list], tuple[cv2.KeyPoint], tuple[cv2.KeyPoint]]:
+def __find_matches(left_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, right_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, k: int) -> tuple[list[list], tuple[cv2.KeyPoint], tuple[cv2.KeyPoint]]:
 
     # Copy the image
     _left_frame = left_frame.copy()
@@ -58,7 +58,7 @@ def find_matches(left_frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, ri
 
     return matches, left_frame_keypoints, right_frame_keypoints
 
-def find_homography(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoint], right_frame_keypoints: tuple[cv2.KeyPoint], ransacReprojThreshold: float, method: int) -> np.ndarray:
+def __find_homography(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoint], right_frame_keypoints: tuple[cv2.KeyPoint], ransacReprojThreshold: float, method: int) -> np.ndarray:
 
     # Check if matches are more than 4
     assert len(matches) >= 4, "Not enough matches"
@@ -80,7 +80,7 @@ def find_homography(matches: list[list], left_frame_keypoints: tuple[cv2.KeyPoin
 
     return homography_matrix
     
-def get_new_frame_size_and_matrix(homography_matrix: np.ndarray, left_frame_shape: tuple[int, int], right_frame_shape: tuple[int, int]) -> tuple[list[list], list[int], np.ndarray]:
+def __get_new_frame_size_and_matrix(homography_matrix: np.ndarray, left_frame_shape: tuple[int, int], right_frame_shape: tuple[int, int]) -> tuple[list[list], list[int], np.ndarray]:
     
     # Reading the size of the image
     height, width = left_frame_shape
@@ -172,10 +172,10 @@ def stitch_images(
     if all(obj is None for obj in [new_frame_size, correction, homography_matrix]):
 
         # Finding matches between the 2 images and their keypoints
-        matches, left_frame_keypoints, right_frame_keypoints = find_matches(left_frame=left_frame, right_frame=right_frame, k=k)
+        matches, left_frame_keypoints, right_frame_keypoints = __find_matches(left_frame=left_frame, right_frame=right_frame, k=k)
         
         # Filter matches
-        matches = filter_matches(matches=matches, left_frame_keypoints=left_frame_keypoints, right_frame_keypoints=right_frame_keypoints, value=value, angle=angle)
+        matches = __filter_matches(matches=matches, left_frame_keypoints=left_frame_keypoints, right_frame_keypoints=right_frame_keypoints, value=value, angle=angle)
 
         if user_left_kp is not None and user_right_kp is not None:
             left_frame_keypoints = list(left_frame_keypoints)
@@ -198,10 +198,10 @@ def stitch_images(
             matches.extend(manual_matches)
 
         # Finding homography matrix
-        homography_matrix = find_homography(matches=matches, left_frame_keypoints=left_frame_keypoints, right_frame_keypoints=right_frame_keypoints, ransacReprojThreshold=ransacReprojThreshold, method=method)
+        homography_matrix = __find_homography(matches=matches, left_frame_keypoints=left_frame_keypoints, right_frame_keypoints=right_frame_keypoints, ransacReprojThreshold=ransacReprojThreshold, method=method)
         
         # Finding size of new frame of stitched images and updating the homography matrix
-        new_frame_size, correction, homography_matrix = get_new_frame_size_and_matrix(homography_matrix, right_frame.shape[:2], left_frame.shape[:2])
+        new_frame_size, correction, homography_matrix = __get_new_frame_size_and_matrix(homography_matrix, right_frame.shape[:2], left_frame.shape[:2])
 
     parameters = (new_frame_size, correction, homography_matrix)
 

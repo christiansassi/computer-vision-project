@@ -51,7 +51,7 @@ def cleanup(signum, frame):
 
 
 
-def _cut_video(videos: list[str]) -> list[str]:
+def __cut_video(videos: list[str]) -> list[str]:
 
     # Check if cut videos already exist. If not create the workspace
     cut_videos_folder = params.CUT_VIDEOS_FOLDER
@@ -80,7 +80,7 @@ def _cut_video(videos: list[str]) -> list[str]:
     
     return cut_videos
 
-def _stitching(frame_top: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, frame_center: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, frame_bottom: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, videos: list[str] = [], calculate_params: bool = False) -> np.ndarray:
+def __stitching(frame_top: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, frame_center: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, frame_bottom: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, videos: list[str] = [], calculate_params: bool = False) -> np.ndarray:
 
     function = eval(inspect.stack()[0][3])
 
@@ -438,7 +438,7 @@ def _stitching(frame_top: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, frame
     # Crop
     return stitched_frame[300:-300, 150:-150]
 
-def _motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, detection_type: int, time_window: int = 1, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat = None, alpha: float = None, reset: bool = False) -> tuple[np.ndarray, list[tuple]]:
+def __motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, detection_type: int, time_window: int = 1, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat = None, alpha: float = None, reset: bool = False) -> tuple[np.ndarray, list[tuple]]:
 
     assert detection_type in [1,2,3, 4], "Invalid motion detection type"
 
@@ -576,7 +576,7 @@ def process_videos(videos: list[str], live: bool = True) -> None:
             logger.info(f"Processing {current_frame_number} / {total_frames_number}\r")
     
         #! Stitching
-        stitched_frame = _stitching(frame_top=frame_top, frame_center=frame_center, frame_bottom=frame_bottom, videos=videos)
+        stitched_frame = __stitching(frame_top=frame_top, frame_center=frame_center, frame_bottom=frame_bottom, videos=videos)
         
         processed_frame = stitched_frame
 
@@ -588,9 +588,9 @@ def process_videos(videos: list[str], live: bool = True) -> None:
                 extracted_frame_top = utils.extract_frame(video=video_top, frame_number=params.BACKGROUND_FRAME)
                 extracted_frame_center = utils.extract_frame(video=video_center, frame_number=params.BACKGROUND_FRAME)
                 extracted_frame_bottom = utils.extract_frame(video=video_bottom, frame_number=params.BACKGROUND_FRAME)
-                background = _stitching(frame_top=extracted_frame_top, frame_center=extracted_frame_center, frame_bottom=extracted_frame_bottom, videos=videos)
+                background = __stitching(frame_top=extracted_frame_top, frame_center=extracted_frame_center, frame_bottom=extracted_frame_bottom, videos=videos)
 
-            motion_detection_frame, motion_detection_bounding_boxes = _motion_detection(frame=stitched_frame, detection_type=motion_detection.BACKGROUND_SUBSTRACTION, background=background)
+            motion_detection_frame, motion_detection_bounding_boxes = __motion_detection(frame=stitched_frame, detection_type=motion_detection.BACKGROUND_SUBSTRACTION, background=background)
 
             #processed_frame = motion_detection_frame
 
@@ -651,7 +651,7 @@ if __name__ == "__main__":
     videos = [join(params.ORIGINAL_VIDEOS_FOLDER, f) for f in listdir(params.ORIGINAL_VIDEOS_FOLDER) if f.endswith(".mp4")]
 
     #? Cut video (just once)
-    videos = _cut_video(videos=videos)
+    videos = __cut_video(videos=videos)
 
     #? Process videos
     process_videos(videos=videos)
