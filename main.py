@@ -1,22 +1,33 @@
-from os import listdir, mkdir
+import os
+from os import listdir, mkdir, system
 from os.path import join, exists, basename
-
-import cv2
-import numpy as np
-
 import signal
 import sys
 import inspect
 
-from src import cut_video
-from src import stitch_image
-from src import utils
-from src import params
+import cv2
+import numpy as np
+
+# Clear screen
+if os.name == "nt":
+    system("cls")
+else:
+    system("clear")
+
+# Setup logger
+from src import wrapped_logging_handler
+logger = wrapped_logging_handler.get_logger()
+
+# Custom modules
+logger.info(f"Importing modules...")
 from src import blending
+from src import cut_video
 from src import motion_detection
 from src import motion_tracking
-
-from src import wrapped_logging_handler
+from src import params
+from src import stitch_image
+from src import utils
+print("DONE")
 
 # Select
 MOTION_DETECTION = True
@@ -31,7 +42,10 @@ def cleanup(signum, frame):
     global OUTPUT_VIDEO
 
     if OUTPUT_VIDEO is not None:
+        print("")
+        logger.info(f"Saving video...\n")
         OUTPUT_VIDEO.release()
+        logger.info(f"Video saved to '{params.PROCESSED_VIDEO}'\n")
 
     sys.exit(0)
 
@@ -60,7 +74,9 @@ def _cut_video(videos: list[str]) -> list[str]:
             output_video = join(cut_videos_folder, basename(input_video))
             
             # Cut video
+            logger.info(f"Cutting '{input_video}'...\n")
             cut_videos.append(cut_video.cut(input_video=input_video, output_video=output_video, t1=30))
+            logger.info(f"Video saved to '{output_video}'\n")
     
     return cut_videos
 
@@ -78,6 +94,8 @@ def _stitching(frame_top: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, frame
     # If specified, calculate stitching params    
     if calculate_params:
         
+        logger.info(f"Calculating stitching parameters...")
+
         assert len(videos), "Videos list empty"
 
         # Params of each video
@@ -304,6 +322,8 @@ def _stitching(frame_top: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, frame
         function.params = top_config, center_config, bottom_config, top_center_config, bottom_center_config, final_config
         function.videos = video_top, video_center, video_bottom
 
+        print("DONE")
+
     # Calculate stitched image
     _frame_top = frame_top.copy()
     _frame_center = frame_center.copy()
@@ -502,17 +522,26 @@ def process_videos(videos: list[str], live: bool = True) -> None:
     global OUTPUT_VIDEO
 
     # Create workspace
+    logger.info(f"Creating workspace...")
+
     processed_videos_folder = params.PROCESSED_VIDEOS_FOLDER
 
     if not exists(processed_videos_folder):
         mkdir(processed_videos_folder)
 
+    print("DONE")
+
     # Open videos
+
     for video in videos:
+        
+        logger.info(f"Opening '{video}'...")
 
         video_capture = cv2.VideoCapture(video)
         assert video_capture.isOpened(), "An error occours while opening the video"
         
+        print("DONE")
+
         if "top" in video:
             video_top = video_capture
         
@@ -524,6 +553,8 @@ def process_videos(videos: list[str], live: bool = True) -> None:
         
         else:
             raise Exception(f"Unknown video {video}")
+
+    total_frames_number = int(video_top.get(cv2.CAP_PROP_FRAME_COUNT))
 
     output_video = None
     
@@ -538,7 +569,12 @@ def process_videos(videos: list[str], live: bool = True) -> None:
 
         if sum([success_top, success_center, success_bottom]) != 3:
             break
+        
+        current_frame_number = int(video_top.get(cv2.CAP_PROP_POS_FRAMES))
 
+        if current_frame_number > 0:
+            logger.info(f"Processing {current_frame_number} / {total_frames_number}\r")
+    
         #! Stitching
         stitched_frame = _stitching(frame_top=frame_top, frame_center=frame_center, frame_bottom=frame_bottom, videos=videos)
         
@@ -556,7 +592,7 @@ def process_videos(videos: list[str], live: bool = True) -> None:
 
             motion_detection_frame, motion_detection_bounding_boxes = _motion_detection(frame=stitched_frame, detection_type=motion_detection.BACKGROUND_SUBSTRACTION, background=background)
 
-            processed_frame = motion_detection_frame
+            #processed_frame = motion_detection_frame
 
         #! Motion tracking
         if MOTION_TRACKING and MOTION_DETECTION:
@@ -590,6 +626,8 @@ def process_videos(videos: list[str], live: bool = True) -> None:
                 frameSize=processed_frame.shape[:2][::-1] # Specify shape (width, height)
             )
 
+            logger.info(f"\033[32mPress Ctrl+C to exit\033[0m\n")
+
             OUTPUT_VIDEO = output_video
 
         output_video.write(processed_frame)
@@ -608,9 +646,6 @@ if __name__ == "__main__":
     # Handle system signals
     signal.signal(signal.SIGINT, cleanup)
     signal.signal(signal.SIGTERM, cleanup)
-
-    # Setup logger
-    logger = wrapped_logging_handler.get_logger()
 
     # List original videos (to be processed)
     videos = [join(params.ORIGINAL_VIDEOS_FOLDER, f) for f in listdir(params.ORIGINAL_VIDEOS_FOLDER) if f.endswith(".mp4")]

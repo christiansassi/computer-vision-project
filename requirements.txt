@@ -3,3 +3,4 @@ screeninfo
 opencv-python
 numpy
 shapely
+distinctipy

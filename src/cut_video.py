@@ -6,11 +6,8 @@ from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 from moviepy.editor import VideoFileClip
 
 import proglog
-import logging
 
 def cut(input_video: str, output_video: str, t1: int = None, t2: int = None, clear: bool = True) -> str:
-
-    logging.info(f"Processing: {input_video}\n")
 
     # Disable moviepy command logs
     #! This line invalidate the default_bar_logger for the entire script!
@@ -34,7 +31,5 @@ def cut(input_video: str, output_video: str, t1: int = None, t2: int = None, cle
     t2 = t2 if t2 is not None else clip.duration
 
     ffmpeg_extract_subclip(filename=input_video, t1=t1, t2=t2, targetname=output_video)
-
-    logging.info(f"Done: {output_video}\n")
 
     return output_video

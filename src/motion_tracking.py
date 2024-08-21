@@ -2,10 +2,14 @@ import cv2
 import numpy as np
 import inspect
 import math
+import distinctipy
 
 from src import params
 
 class ParticleFilter:
+
+    COLORS_HISTORY = [distinctipy.get_rgb256(color) for color in distinctipy.get_colors(n_colors=25, pastel_factor=0.5)]
+    COLORS = COLORS_HISTORY.copy()
 
     def __init__(self, width: int, height: int, number_of_particles: int, bounding_box: tuple) -> None:
         
@@ -26,6 +30,24 @@ class ParticleFilter:
         # Calculate the centroid (assume it is the position of the object)
         x, y, w, h = bounding_box
         self.centroid = np.array([x + w / 2, y + h / 2])
+
+        # Select one of the randomly generated colors
+        if not len(ParticleFilter.COLORS):
+            new_colors = [distinctipy.get_rgb256(color) for color in distinctipy.get_colors(n_colors=1, pastel_factor=0.5, exclude_colors=ParticleFilter.COLORS_HISTORY)]
+
+            ParticleFilter.COLORS_HISTORY.extend(new_colors)
+            ParticleFilter.COLORS.extend(new_colors)
+
+        self.color = ParticleFilter.COLORS.pop()
+            
+    def __del__(self):
+
+        # try-except block used for handling script interruptions and the removal of the class
+        try:
+            # Make the color used by this particle system accessible
+            ParticleFilter.COLORS.append(self.color)
+        except:
+            pass
 
     def _update_weights(self, centroid, measurement_noise_std=params.MEASUREMENT_NOISE_STD):
 
@@ -78,6 +100,9 @@ class ParticleFilter:
 
     def get_distance(self, centroid: np.ndarray) -> int:
         return math.dist(centroid, self.centroid)
+
+    def get_color(self):
+        return tuple(list(self.color).copy())
 
 def particle_filtering(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, bounding_boxes: list[tuple], reset: bool = False) -> tuple[np.ndarray, dict]:
 
@@ -213,6 +238,9 @@ def particle_filtering(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, bou
             "origin": origin,
             "estimated": estimated
         }
+
+        # Draw bounding box
+        cv2.rectangle(frame, (x, y), (x + w, y + h), particle_system.get_color(), 2)
 
         # Draw the estimated position, centroid, and particles on the frame
         cv2.arrowedLine(frame, origin, estimated, (0, 255, 0), 4, tipLength=1)
