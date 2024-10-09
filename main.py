@@ -4,9 +4,13 @@ from os.path import join, exists, basename
 import signal
 import sys
 import inspect
+from inference import get_model
+from ultralytics import YOLO
 
 import cv2
 import numpy as np
+import math
+from collections import defaultdict
 
 # Clear screen
 if os.name == "nt":
@@ -30,10 +34,11 @@ from src import utils
 print("DONE")
 
 # Select
-MOTION_DETECTION = True
-MOTION_TRACKING = True
+MOTION_DETECTION = False
+MOTION_TRACKING = False
 TEAM_IDENTIFICATION = False
 BALL_TRACKING = False
+BALL_TRACKING_YOLO = True
 
 OUTPUT_VIDEO = None
 
@@ -48,8 +53,6 @@ def cleanup(signum, frame):
         logger.info(f"Video saved to '{params.PROCESSED_VIDEO}'\n")
 
     sys.exit(0)
-
-
 
 def __cut_video(videos: list[str]) -> list[str]:
 
@@ -572,11 +575,13 @@ def __motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, d
 
         return motion_detection.gaussian_average(**args)
 
-
-
 def process_videos(videos: list[str], live: bool = True) -> None:
     
     global OUTPUT_VIDEO
+    
+    # Load the model for ball and player detection
+    model = YOLO(os.path.join("models", "best_v11_1300_noaug.pt"), verbose=False)
+    track_history = defaultdict(lambda: [])
 
     # Create workspace
     logger.info(f"Creating workspace...")
@@ -614,7 +619,7 @@ def process_videos(videos: list[str], live: bool = True) -> None:
     total_frames_number = int(video_top.get(cv2.CAP_PROP_FRAME_COUNT))
 
     # Fast forward the videos
-    skip_to = 400
+    skip_to = 1150
     video_top.set(cv2.CAP_PROP_POS_FRAMES, skip_to)
     video_center.set(cv2.CAP_PROP_POS_FRAMES, skip_to)
     video_bottom.set(cv2.CAP_PROP_POS_FRAMES, skip_to)
@@ -661,17 +666,228 @@ def process_videos(videos: list[str], live: bool = True) -> None:
         #     pass
 
         #! Ball tracking
+        def evaluate_circle_similarity(contour):
+            # Calcola l'area del contorno
+            contour_area = cv2.contourArea(contour)
+
+            # Trova il cerchio minimo che racchiude il contorno
+            (x, y), radius = cv2.minEnclosingCircle(contour)
+
+            # Calcola l'area del cerchio minimo
+            circle_area = np.pi * (radius ** 2)
+
+            # Rapporto area contorno/area cerchio
+            if circle_area > 0:
+                ratio = contour_area / circle_area
+            else:
+                ratio = 0
+
+            return ratio, (int(x), int(y)), int(radius)
+        
         if BALL_TRACKING:
-            motion_detection_frame, motion_detection_bounding_boxes = __motion_detection(frame=stitched_frame, detection_type=motion_detection.BACKGROUND_SUBSTRACTION, background=background, min_area=1000, max_area=2500)
+            # processed_frame = cv2.imread("frame.png")
+            # utils.show_img(processed_frame, ratio=1.5)
+
+            # Converti l'immagine in formato HSV
+            hsv = cv2.cvtColor(processed_frame, cv2.COLOR_BGR2HSV)
+
+            # Definisci i range di colore per il giallo e il blu (modificati per la scena)
+            lower_yellow = np.array([29, 58, 142], dtype=np.uint8)
+            upper_yellow = np.array([34, 122, 232], dtype=np.uint8)
+
+            lower_blue = np.array([120, 61, 17], dtype=np.uint8)
+            upper_blue = np.array([130, 237, 92], dtype=np.uint8)
+
+            # Yellow mask
+            mask_yellow = cv2.inRange(hsv, lower_yellow, upper_yellow)
+            contours, _ = cv2.findContours(mask_yellow, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            yellow_contours = []
+
+            for contour in contours:
+                area = cv2.contourArea(contour)
+
+                if not 0 < area < 200:
+                    cv2.drawContours(mask_yellow, [contour], contourIdx=-1, color=(0, 0, 0), thickness=cv2.FILLED)
+                    continue
+                
+                M = cv2.moments(contour)
+
+                # Calculate the centroid
+                if M["m00"] != 0:  # Avoid division by zero
+                    cx = int(M["m10"] / M["m00"])  # x-coordinate of the centroid
+                    cy = int(M["m01"] / M["m00"])  # y-coordinate of the centroid
+                    yellow_contours.append([contour, (cx, cy)])
+
+            kernel = np.ones((9, 9), np.uint8)
+            mask_yellow = cv2.dilate(mask_yellow, kernel, iterations=1)
+            # utils.show_img(mask_yellow, ratio=1.5)
+            
+            # Blue mask
+            mask_blue = cv2.inRange(hsv, lower_blue, upper_blue)
+            contours, _ = cv2.findContours(mask_blue, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+            for contour in contours:
+                
+                M = cv2.moments(contour)
+
+                # Calculate the centroid
+                if M["m00"] != 0:  # Avoid division by zero
+                    cx = int(M["m10"] / M["m00"])  # x-coordinate of the centroid
+                    cy = int(M["m01"] / M["m00"])  # y-coordinate of the centroid
+                    center = (cx, cy)
+                else:
+                    cv2.drawContours(mask_blue, [contour], contourIdx=-1, color=(0, 0, 0), thickness=cv2.FILLED)
+                    continue
+
+                skip = True
+
+                for _, yellow_center in yellow_contours:
+
+                    if math.dist(yellow_center, center) < 50:
+                        skip = False
+                        break
+                
+                if skip:
+                    cv2.drawContours(mask_blue, [contour], contourIdx=-1, color=(0, 0, 0), thickness=cv2.FILLED)
+
+            kernel = np.ones((9, 9), np.uint8)
+            mask_blue = cv2.dilate(mask_blue, kernel, iterations=1)
+            # utils.show_img(mask_blue, ratio=1.5)
+
+            # for _, center in yellow_contours:
+            #     cv2.circle(mask_yellow, center, 20, (255, 255, 255), thickness=cv2.FILLED)
+
+            # Combina le maschere
+            mask = cv2.bitwise_or(mask_yellow, mask_blue)
+
+            # utils.show_img(mask, ratio=1.5)
+
+            # Applica un leggero blur per ridurre il rumore
+            # blurred_mask = cv2.GaussianBlur(mask, (5, 5), 0)
+
+            # Applica dilation
+            kernel = np.ones((9, 9), np.uint8)
+            blurred_mask = cv2.dilate(mask, kernel, iterations=1)
+            blurred_mask = cv2.erode(blurred_mask, kernel, iterations=1)
+
+            # utils.show_img(blurred_mask, ratio=1.5)
+ 
+            # Trova i contorni degli oggetti nella maschera pulita
+            contours, _ = cv2.findContours(blurred_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            # utils.show_img(cv2.drawContours(processed_frame.copy(), contours, -1, (0, 255, 0), 2), ratio=1.5)
+
+            # Per ogni contorno, valuta quanto somiglia a un cerchio
+            best_circle_similarity = 0
+            best_circle_info = None
+
+            for contour in contours:
+                area = cv2.contourArea(contour)
+                
+                if 200 < area < 2000:  # Filtra contorni piccoli
+                    similarity_ratio, center, radius = evaluate_circle_similarity(contour)
+                    
+                    # Se il rapporto è più vicino a 1, somiglia di più a un cerchio
+                    if similarity_ratio > best_circle_similarity:
+                        best_circle_similarity = similarity_ratio
+                        best_circle_info = (center, radius, area)
+
+            # Se abbiamo trovato un contorno che somiglia a un cerchio, disegna il cerchio
+            processed_frame = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+
+            if best_circle_info:
+                center, radius, area = best_circle_info
+                cv2.circle(processed_frame, center, radius, (0, 255, 0), 2)  # Verde con spessore 2
+
+            #motion_detection_frame, motion_detection_bounding_boxes = __motion_detection(frame=stitched_frame, detection_type=motion_detection.BACKGROUND_SUBSTRACTION, background=background, min_area=1000, max_area=2500)
             #processed_frame = motion_detection_frame
 
             pass
+        
+        if BALL_TRACKING_YOLO:
+
+            # Ridimensiona l'immagine a 640x640 per il modello
+            original_frame = processed_frame.copy()
+            resized_frame = cv2.resize(original_frame, (800, 800))
+
+            # Effettua la detection e tracking sull'immagine ridimensionata
+            results = model.track(resized_frame, verbose=False, tracker="bytetrack.yaml")
+
+            # Ottieni le dimensioni originali
+            h_orig, w_orig = original_frame.shape[:2]
+            h_resized, w_resized = resized_frame.shape[:2]
+
+            # Fattori di scala per riproiettare le bounding box sull'immagine originale
+            scale_x = w_orig / w_resized
+            scale_y = h_orig / h_resized
+
+            # Ottieni i bounding box e riproiettali sull'immagine originale
+            for result in results:
+                for box, id in zip(result.boxes, result.boxes.id):
+                    # Coordinate della bounding box sulla versione ridimensionata
+                    x, y, w, h = map(int, box.xywh[0])
+                    
+                    # Class and confidence
+                    class_id = int(box.cls[0])
+                    confidence = box.conf[0]
+
+                    # Tracking ID
+                    track_id = box.id[0] if box.id is not None else None  # Ottieni l'ID del tracking se presente
+
+                    # Mappa l'id della classe su un nome
+                    class_map = {0: "ball", 1: "player"} 
+                    label = class_map.get(class_id, "unknown")
+
+                    if label == "ball":
+                        track = track_history[int(box.id)]
+                        track.append((float(x), float(y)))
+                        if len(track) > 30:
+                            track.pop(0)
+                        
+                        scaled_points = np.copy(track)
+                        scaled_points[:, 0] = scaled_points[:, 0] * scale_x  # Rescale x-coordinates
+                        scaled_points[:, 1] = scaled_points[:, 1] * scale_y  # Rescale y-coordinates
+
+                        # Convert to the required format for polylines
+                        scaled_points = np.hstack(scaled_points).astype(np.int32).reshape((-1, 1, 2))
+
+                        # Draw the polylines on the processed frame with the rescaled points
+                        cv2.polylines(processed_frame, [scaled_points], isClosed=False, color=(255, 0, 0), thickness=5)
+
+                    if label == "player":
+                        color = (0, 0, 255)  # Rosso
+                    elif label == "ball":
+                        color = (0, 255, 0)  # Verde
+                    else:
+                        color = (255, 255, 255)  # Bianco
+
+                    # Ripristina le coordinate sulla dimensione originale
+                    x = int(x * scale_x)
+                    y = int(y * scale_y)
+                    w = int(w * scale_x)
+                    h = int(h * scale_y)
+
+                    x1 = int(x - w / 2)
+                    y1 = int(y - h / 2)
+                    x2 = int(x + w / 2)
+                    y2 = int(y + h / 2)
+
+                    # Disegna la bounding box solo se la confidenza è maggiore di una soglia
+                    if confidence > 0.5:  # Soglia di confidenza per filtrare i risultati
+                        cv2.rectangle(processed_frame, (x1, y1), (x2, y2), color, 3)
+
+                        # Aggiungi la label, la confidenza, e l'ID del tracking
+                        text = f"{label}: {confidence:.2f}"
+                        if track_id is not None:
+                            text += f" ID: {track_id}"
+
+                        cv2.putText(processed_frame, text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
         # Show processed video
         if live:
-
-            cv2.imshow("Processed video", processed_frame)
-
+            
+            # cv2.imwrite(f"training_dataset/frame_{int(video_top.get(cv2.CAP_PROP_POS_FRAMES))}.png", processed_frame)
+            cv2.imshow("Processed video", cv2.resize(processed_frame, (processed_frame.shape[1] // 2, processed_frame.shape[0] // 2)))
+            
             if cv2.waitKey(25) & 0xFF == ord("q"):
                 break
         
