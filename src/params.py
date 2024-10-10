@@ -1,4 +1,7 @@
 
+from os.path import join
+from enum import Enum
+
 #? CONST
 
 VALUE = 0.99 # Value for matching keypoints
@@ -81,9 +84,21 @@ FINAL = {
     "right_max": 770
 }
 
-#? USER
+# YOLO
+YOLO_PATH = join("models", "best_v11_1300_noaug.pt")
+YOLO_CONFIDENCE = 0.5
 
-from os.path import join
+class YOLO_CLASS(Enum):
+    BALL = "ball",
+    PLAYER = "player"
+    UNKNOWN = None
+
+YOLO_CLASS_MAP = {
+    0: YOLO_CLASS.BALL,
+    1: YOLO_CLASS.PLAYER
+}
+
+#? USER
 
 ROOT = "videos"
 

@@ -9,7 +9,6 @@ from ultralytics import YOLO
 
 import cv2
 import numpy as np
-import math
 from collections import defaultdict
 
 # Clear screen
@@ -579,7 +578,7 @@ def process_videos(videos: list[str], live: bool = True) -> None:
     global OUTPUT_VIDEO
     
     # Load the model for ball and player detection
-    model = YOLO(os.path.join("models", "best_v11_1300_noaug.pt"), verbose=False)
+    model = YOLO(params.YOLO_PATH, verbose=False)
     track_history = defaultdict(lambda: [])
 
     # Create workspace
@@ -665,24 +664,6 @@ def process_videos(videos: list[str], live: bool = True) -> None:
         #     pass
 
         #! Ball tracking
-        def evaluate_circle_similarity(contour):
-            # Calcola l'area del contorno
-            contour_area = cv2.contourArea(contour)
-
-            # Trova il cerchio minimo che racchiude il contorno
-            (x, y), radius = cv2.minEnclosingCircle(contour)
-
-            # Calcola l'area del cerchio minimo
-            circle_area = np.pi * (radius ** 2)
-
-            # Rapporto area contorno/area cerchio
-            if circle_area > 0:
-                ratio = contour_area / circle_area
-            else:
-                ratio = 0
-
-            return ratio, (int(x), int(y)), int(radius)
-        
         if BALL_TRACKING:
 
             # Resize the frame 
@@ -700,10 +681,11 @@ def process_videos(videos: list[str], live: bool = True) -> None:
             scale_x = w_orig / w_resized
             scale_y = h_orig / h_resized
 
-            # Ottieni i bounding box e riproiettali sull'immagine originale
+            # Extract bounding boxes
             for result in results:
                 for box in result.boxes:
-                    # Coordinate della bounding box sulla versione ridimensionata
+
+                    # Extract coordinates
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
                     
                     # Class and confidence
@@ -711,27 +693,26 @@ def process_videos(videos: list[str], live: bool = True) -> None:
                     confidence = box.conf[0]
 
                     # Tracking ID
-                    track_id = box.id[0] if box.id is not None else None  # Ottieni l'ID del tracking se presente
+                    track_id = box.id[0] if box.id is not None else None
 
-                    # Mappa l'id della classe su un nome
-                    class_map = {0: "ball", 1: "player"} 
-                    label = class_map.get(class_id, "unknown")
+                    # Extract class label
+                    label = params.YOLO_CLASS_MAP.get(class_id, params.YOLO_CLASS.UNKNOWN)
 
-                    if label == "player":
+                    if label == params.YOLO_CLASS.PLAYER:
                         color = (0, 0, 255)  # Rosso
-                    elif label == "ball":
+                    elif label == params.YOLO_CLASS.BALL:
                         color = (0, 255, 0)  # Verde
                     else:
                         color = (255, 255, 255)  # Bianco
 
-                    # Ripristina le coordinate sulla dimensione originale
+                    # Convert actual coordinates into original image coordinates
                     x1 = int(x1 * scale_x)
                     y1 = int(y1 * scale_y)
                     x2 = int(x2 * scale_x)
                     y2 = int(y2 * scale_y)
 
-                    # Disegna la bounding box solo se la confidenza è maggiore di una soglia
-                    if confidence > 0.5 and label == "ball":  # Soglia di confidenza per filtrare i risultati
+                    # Draw bounding box based on a threshold
+                    if confidence > params.YOLO_CONFIDENCE and label == params.YOLO_CLASS.BALL:  # Soglia di confidenza per filtrare i risultati
                         cv2.rectangle(processed_frame, (x1, y1), (x2, y2), color, 3)
 
                         # Aggiungi la label, la confidenza, e l'ID del tracking
