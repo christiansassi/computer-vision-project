@@ -4,7 +4,6 @@ from os.path import join, exists, basename
 import signal
 import sys
 import inspect
-from inference import get_model
 from ultralytics import YOLO
 
 import cv2
@@ -33,8 +32,8 @@ from src import utils
 print("DONE")
 
 # Select
-MOTION_DETECTION = False
-MOTION_TRACKING = False
+MOTION_DETECTION = True
+MOTION_TRACKING = True
 TEAM_IDENTIFICATION = False
 BALL_TRACKING = True
 
@@ -617,7 +616,7 @@ def process_videos(videos: list[str], live: bool = True) -> None:
     total_frames_number = int(video_top.get(cv2.CAP_PROP_FRAME_COUNT))
 
     # Fast forward the videos
-    skip_to = 1150
+    skip_to = 1190
     video_top.set(cv2.CAP_PROP_POS_FRAMES, skip_to)
     video_center.set(cv2.CAP_PROP_POS_FRAMES, skip_to)
     video_bottom.set(cv2.CAP_PROP_POS_FRAMES, skip_to)
@@ -652,7 +651,7 @@ def process_videos(videos: list[str], live: bool = True) -> None:
         #! Motion detection
         if MOTION_DETECTION:
             motion_detection_frame, motion_detection_bounding_boxes = __motion_detection(frame=stitched_frame, detection_type=motion_detection.BACKGROUND_SUBSTRACTION, background=background, min_area=4000)
-            #processed_frame = motion_detection_frame
+            processed_frame = motion_detection_frame
 
         #! Motion tracking
         if MOTION_TRACKING and MOTION_DETECTION:
@@ -699,11 +698,11 @@ def process_videos(videos: list[str], live: bool = True) -> None:
                     label = params.YOLO_CLASS_MAP.get(class_id, params.YOLO_CLASS.UNKNOWN)
 
                     if label == params.YOLO_CLASS.PLAYER:
-                        color = (0, 0, 255)  # Rosso
+                        color = (0, 0, 255)
                     elif label == params.YOLO_CLASS.BALL:
-                        color = (0, 255, 0)  # Verde
+                        color = (0, 255, 0)
                     else:
-                        color = (255, 255, 255)  # Bianco
+                        color = (255, 255, 255)
 
                     # Convert actual coordinates into original image coordinates
                     x1 = int(x1 * scale_x)
@@ -712,11 +711,11 @@ def process_videos(videos: list[str], live: bool = True) -> None:
                     y2 = int(y2 * scale_y)
 
                     # Draw bounding box based on a threshold
-                    if confidence > params.YOLO_CONFIDENCE and label == params.YOLO_CLASS.BALL:  # Soglia di confidenza per filtrare i risultati
+                    if confidence > params.YOLO_CONFIDENCE and label == params.YOLO_CLASS.BALL:
                         cv2.rectangle(processed_frame, (x1, y1), (x2, y2), color, 3)
 
-                        # Aggiungi la label, la confidenza, e l'ID del tracking
-                        text = f"{label}: {confidence:.2f}"
+                        # Create bounding box text
+                        text = f"{label.value}: {confidence:.2f}"
                         if track_id is not None:
                             text += f" ID: {track_id}"
 

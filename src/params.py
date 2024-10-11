@@ -89,7 +89,7 @@ YOLO_PATH = join("models", "best_v11_1300_noaug.pt")
 YOLO_CONFIDENCE = 0.5
 
 class YOLO_CLASS(Enum):
-    BALL = "ball",
+    BALL = "ball"
     PLAYER = "player"
     UNKNOWN = None
 

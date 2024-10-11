@@ -124,9 +124,6 @@ def background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat
     frame = mat.copy()
     frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     frame_gray = cv2.GaussianBlur(frame_gray, (15, 15), 0)
-    
-    #cv2.imwrite("blur.jpg", frame_gray)
-    #exit(0)
 
     # Calculate abs difference between the two frames
     diff = cv2.absdiff(background_gray, frame_gray)
