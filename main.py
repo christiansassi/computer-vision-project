@@ -8,7 +8,6 @@ from ultralytics import YOLO
 
 import cv2
 import numpy as np
-from collections import defaultdict
 
 # Clear screen
 if os.name == "nt":
@@ -578,7 +577,6 @@ def process_videos(videos: list[str], live: bool = True) -> None:
     
     # Load the model for ball and player detection
     model = YOLO(params.YOLO_PATH, verbose=False)
-    track_history = defaultdict(lambda: [])
 
     # Create workspace
     logger.info(f"Creating workspace...")
@@ -712,7 +710,7 @@ def process_videos(videos: list[str], live: bool = True) -> None:
 
                     # Draw bounding box based on a threshold
                     if confidence > params.YOLO_CONFIDENCE and label == params.YOLO_CLASS.BALL:
-                        cv2.rectangle(processed_frame, (x1, y1), (x2, y2), color, 3)
+                        cv2.rectangle(processed_frame, (x1, y1), (x2, y2), color, 2)
 
                         # Create bounding box text
                         text = f"{label.value}: {confidence:.2f}"
