@@ -102,7 +102,7 @@ class ParticleFilter:
         return math.dist(centroid, self.centroid)
 
     def get_color(self):
-        return tuple(list(self.color).copy())
+        return (0, 0, 255) #tuple(list(self.color).copy())
 
 def particle_filtering(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, bounding_boxes: list[tuple], reset: bool = False) -> tuple[np.ndarray, dict]:
 
