@@ -704,7 +704,6 @@ def process_videos(videos: list[str], live: bool = True) -> None:
 
         #! Stitching
         stitched_frame = __stitching(frame_top=frame_top, frame_center=frame_center, frame_bottom=frame_bottom, videos=videos)
-        
         processed_frame = stitched_frame
 
         #! Motion detection
@@ -728,8 +727,6 @@ def process_videos(videos: list[str], live: bool = True) -> None:
         #! Ball tracking
         if BALL_TRACKING:
             pass
-
-        
 
         # Show processed video
         if live:
