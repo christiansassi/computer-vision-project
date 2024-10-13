@@ -34,7 +34,8 @@ print("DONE")
 MOTION_DETECTION = True
 MOTION_TRACKING = True
 TEAM_IDENTIFICATION = False
-BALL_TRACKING = True
+BALL_DETECTION = True
+BALL_TRACKING = False
 
 OUTPUT_VIDEO = None
 
@@ -571,6 +572,66 @@ def __motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, d
 
         return motion_detection.gaussian_average(**args)
 
+def __ball_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, model: YOLO) -> np.ndarray:
+
+    # Resize the frame 
+    original_frame = frame.copy()
+    resized_frame = cv2.resize(original_frame, (800, 800))
+
+    # Detect objects
+    results = model(resized_frame, verbose=False)
+
+    # Dimensions of the original and resized frames
+    h_orig, w_orig = original_frame.shape[:2]
+    h_resized, w_resized = resized_frame.shape[:2]
+
+    # Scale factors
+    scale_x = w_orig / w_resized
+    scale_y = h_orig / h_resized
+
+    # Extract bounding boxes
+    for result in results:
+        for box in result.boxes:
+
+            # Extract coordinates
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
+            
+            # Class and confidence
+            class_id = int(box.cls[0])
+            confidence = box.conf[0]
+
+            # Tracking ID
+            track_id = box.id[0] if box.id is not None else None
+
+            # Extract class label
+            label = params.YOLO_CLASS_MAP.get(class_id, params.YOLO_CLASS.UNKNOWN)
+
+            if label == params.YOLO_CLASS.PLAYER:
+                color = (0, 0, 255)
+            elif label == params.YOLO_CLASS.BALL:
+                color = (0, 255, 0)
+            else:
+                color = (255, 255, 255)
+
+            # Convert actual coordinates into original image coordinates
+            x1 = int(x1 * scale_x)
+            y1 = int(y1 * scale_y)
+            x2 = int(x2 * scale_x)
+            y2 = int(y2 * scale_y)
+
+            # Draw bounding box based on a threshold
+            if confidence > params.YOLO_CONFIDENCE and label == params.YOLO_CLASS.BALL:
+                cv2.rectangle(original_frame, (x1, y1), (x2, y2), color, 2)
+
+                # Create bounding box text
+                text = f"{label.value}: {confidence:.2f}"
+                if track_id is not None:
+                    text += f" ID: {track_id}"
+
+                cv2.putText(original_frame, text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+    return original_frame
+
 def process_videos(videos: list[str], live: bool = True) -> None:
     
     global OUTPUT_VIDEO
@@ -660,64 +721,15 @@ def process_videos(videos: list[str], live: bool = True) -> None:
         # if TEAM_IDENTIFICATION:
         #     pass
 
+        #! Ball detection
+        if BALL_DETECTION:
+            processed_frame = __ball_detection(frame=processed_frame, model=model)
+    
         #! Ball tracking
         if BALL_TRACKING:
+            pass
 
-            # Resize the frame 
-            original_frame = processed_frame.copy()
-            resized_frame = cv2.resize(original_frame, (800, 800))
-
-            # Detect objects
-            results = model(resized_frame, verbose=False)
-
-            # Dimensions of the original and resized frames
-            h_orig, w_orig = original_frame.shape[:2]
-            h_resized, w_resized = resized_frame.shape[:2]
-
-            # Scale factors
-            scale_x = w_orig / w_resized
-            scale_y = h_orig / h_resized
-
-            # Extract bounding boxes
-            for result in results:
-                for box in result.boxes:
-
-                    # Extract coordinates
-                    x1, y1, x2, y2 = map(int, box.xyxy[0])
-                    
-                    # Class and confidence
-                    class_id = int(box.cls[0])
-                    confidence = box.conf[0]
-
-                    # Tracking ID
-                    track_id = box.id[0] if box.id is not None else None
-
-                    # Extract class label
-                    label = params.YOLO_CLASS_MAP.get(class_id, params.YOLO_CLASS.UNKNOWN)
-
-                    if label == params.YOLO_CLASS.PLAYER:
-                        color = (0, 0, 255)
-                    elif label == params.YOLO_CLASS.BALL:
-                        color = (0, 255, 0)
-                    else:
-                        color = (255, 255, 255)
-
-                    # Convert actual coordinates into original image coordinates
-                    x1 = int(x1 * scale_x)
-                    y1 = int(y1 * scale_y)
-                    x2 = int(x2 * scale_x)
-                    y2 = int(y2 * scale_y)
-
-                    # Draw bounding box based on a threshold
-                    if confidence > params.YOLO_CONFIDENCE and label == params.YOLO_CLASS.BALL:
-                        cv2.rectangle(processed_frame, (x1, y1), (x2, y2), color, 2)
-
-                        # Create bounding box text
-                        text = f"{label.value}: {confidence:.2f}"
-                        if track_id is not None:
-                            text += f" ID: {track_id}"
-
-                        cv2.putText(processed_frame, text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+        
 
         # Show processed video
         if live:
@@ -745,7 +757,7 @@ def process_videos(videos: list[str], live: bool = True) -> None:
     # Cleanup
     cv2.destroyAllWindows()
 
-    video_top.release()
+    video_top.release() 
     video_center.release()
     video_bottom.release()
 
