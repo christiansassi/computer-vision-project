@@ -5,6 +5,7 @@ import signal
 import sys
 import inspect
 from ultralytics import YOLO
+from time import time
 
 import cv2
 import numpy as np
@@ -28,6 +29,7 @@ from src import motion_tracking
 from src import params
 from src import stitch_image
 from src import utils
+from src import ball_tracking
 print("DONE")
 
 # Select
@@ -35,7 +37,7 @@ MOTION_DETECTION = True
 MOTION_TRACKING = True
 TEAM_IDENTIFICATION = False
 BALL_DETECTION = True
-BALL_TRACKING = False
+BALL_TRACKING = True
 
 OUTPUT_VIDEO = None
 
@@ -614,11 +616,16 @@ def __ball_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, mod
                 x2 = int(x2 * scale_x)
                 y2 = int(y2 * scale_y)
 
+                x = min(x1, x2)
+                y = min(y1, y2)
+                w = abs(x1 - x2)
+                h = abs(y1 - y2)
+
                 text = f"{label.value}: {confidence:.2f}"
 
                 best_ball = {
                     "confidence": confidence,
-                    "bounding_box": ((x1, y1), (x2, y2)),
+                    "bounding_box": (x, y, w, h),
                     "text": text
                 }
 
@@ -691,24 +698,31 @@ def process_videos(videos: list[str], live: bool = True) -> None:
 
         if sum([success_top, success_center, success_bottom]) != 3:
             break
-        
-        logger.info(f"Processing {int(video_top.get(cv2.CAP_PROP_POS_FRAMES))} / {total_frames_number}\r")
 
         #! Stitching
+        stitching_time = time()
         stitched_frame = __stitching(frame_top=frame_top, frame_center=frame_center, frame_bottom=frame_bottom, videos=videos)
+        stitching_time = time() - stitching_time
+
         processed_frame = stitched_frame
 
         #! Motion detection
         if MOTION_DETECTION:
+            motion_detection_time = time()
             motion_detection_bounding_boxes = __motion_detection(frame=stitched_frame, detection_type=motion_detection.BACKGROUND_SUBSTRACTION, background=background, min_area=4000)
+            motion_detection_time = time() - motion_detection_time
         else:
             motion_detection_bounding_boxes = []
+            motion_detection_time = 0
 
         #! Motion tracking
-        if MOTION_TRACKING and MOTION_DETECTION:
+        if MOTION_TRACKING and MOTION_DETECTION and len(motion_detection_bounding_boxes):
+            motion_tracking_time = time()
             motion_tracking_results = motion_tracking.particle_filtering(mat=processed_frame, bounding_boxes=motion_detection_bounding_boxes)
+            motion_tracking_time = time() - motion_tracking_time
         else:
-            motion_tracking_results = []
+            motion_tracking_results = {}
+            motion_tracking_time = 0
 
         #! Team identification
         # if TEAM_IDENTIFICATION:
@@ -716,11 +730,20 @@ def process_videos(videos: list[str], live: bool = True) -> None:
 
         #! Ball detection
         if BALL_DETECTION:
-            ball_bounding_box = __ball_detection(frame=processed_frame, model=model)
+            ball_detection_time = time()
+            ball = __ball_detection(frame=processed_frame, model=model)
+            ball_detection_time = time() - ball_detection_time
+        else:
+            ball_detection_time = 0
     
         #! Ball tracking
-        if BALL_TRACKING:
-            pass
+        if BALL_TRACKING and BALL_DETECTION and ball is not None:
+            ball_tracking_time = time()
+            ball_tracking_results = ball_tracking.particle_filtering(mat=processed_frame, bounding_boxes=[ball["bounding_box"]])
+            ball_tracking_time = time() - ball_tracking_time
+        else:
+            ball_tracking_results = {}
+            ball_tracking_time = 0
 
         # Draw
         for x, y, w, h in motion_detection_bounding_boxes:
@@ -732,13 +755,19 @@ def process_videos(videos: list[str], live: bool = True) -> None:
 
             cv2.arrowedLine(processed_frame, origin, estimated, (0, 0, 255), 4, tipLength=0.25)
 
-        if ball_bounding_box is not None:
+        if ball is not None:
 
-            (x1, y1), (x2, y2) = ball_bounding_box["bounding_box"]
-            text = ball_bounding_box["text"]
+            x, y, w, h = ball["bounding_box"]
+            text = ball["text"]
 
-            cv2.rectangle(processed_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(processed_frame, text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            cv2.rectangle(processed_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.putText(processed_frame, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+        for obj in list(ball_tracking_results.values()):
+            origin = obj["origin"]
+            estimated = obj["estimated"]
+
+            cv2.arrowedLine(processed_frame, origin, estimated, (0, 255, 0), 4, tipLength=0.25)
 
         # Show processed video
         if live:
@@ -762,6 +791,16 @@ def process_videos(videos: list[str], live: bool = True) -> None:
             OUTPUT_VIDEO = output_video
 
         output_video.write(processed_frame)
+
+        info_log = f"Processing {int(video_top.get(cv2.CAP_PROP_POS_FRAMES)) + 1} / {total_frames_number}\n"
+
+        info_log = f"\nStitching time: {round(motion_detection_time)}\n"
+        info_log = f"\nMotion detection: {round(motion_detection_time)}\n"
+        info_log = f"\nMotion tracking: {round(motion_tracking_time)}\n"
+        info_log = f"\nBall detection: {round(ball_detection_time)}\n"
+        info_log = f"\nBall tracking: {round(ball_tracking_time)}\r"
+
+        logger.info(info_log)
 
     # Cleanup
     cv2.destroyAllWindows()
