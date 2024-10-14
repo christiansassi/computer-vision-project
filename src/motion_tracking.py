@@ -104,7 +104,7 @@ class ParticleFilter:
     def get_color(self):
         return (0, 0, 255) #tuple(list(self.color).copy())
 
-def particle_filtering(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, bounding_boxes: list[tuple], reset: bool = False) -> tuple[np.ndarray, dict]:
+def particle_filtering(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, bounding_boxes: list[tuple], reset: bool = False) -> dict:
 
     frame = mat.copy()
     height, width = mat.shape[:2]
@@ -240,9 +240,9 @@ def particle_filtering(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, bou
         }
 
         # Draw bounding box
-        cv2.rectangle(frame, (x, y), (x + w, y + h), particle_system.get_color(), 2)
+        #cv2.rectangle(frame, (x, y), (x + w, y + h), particle_system.get_color(), 2)
 
         # Draw the arrow associated to the estimated position
-        cv2.arrowedLine(frame, origin, estimated, particle_system.get_color(), 4, tipLength=0.25)
+        #cv2.arrowedLine(frame, origin, estimated, particle_system.get_color(), 4, tipLength=0.25)
 
-    return frame, results
+    return results

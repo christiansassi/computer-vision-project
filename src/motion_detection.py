@@ -49,7 +49,7 @@ def __filter_contours(contours: tuple, min_area: int = None, max_area: int = Non
 
     return tuple(intercepted_contours)
 
-def frame_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, time_window: int = 1, min_area: int = None, max_area: int = None, reset: bool = False) -> tuple[np.ndarray, list[tuple]]:
+def frame_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, time_window: int = 1, min_area: int = None, max_area: int = None, reset: bool = False) -> list[tuple]:
 
     # Copy the original frame
     original_frame = mat.copy()
@@ -94,12 +94,12 @@ def frame_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, tim
     bounding_boxes = []
 
     # Draw bounding boxes around detected motion
-    for contour in contours:
+    # for contour in contours:
 
-        x, y, w, h = cv2.boundingRect(contour)
-        bounding_boxes.append((x, y, w, h))
+    #     x, y, w, h = cv2.boundingRect(contour)
+    #     bounding_boxes.append((x, y, w, h))
 
-        cv2.rectangle(original_frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+    #     cv2.rectangle(original_frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
     # Update based on specified window
     function.time_window = function.time_window + 1
@@ -108,9 +108,9 @@ def frame_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, tim
         function.ref_frame = frame
         function.time_window = 0
 
-    return original_frame, bounding_boxes
+    return bounding_boxes
 
-def background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, min_area: int = None, max_area: int = None) -> tuple[np.ndarray, list[tuple]]:
+def background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, min_area: int = None, max_area: int = None) -> list[tuple]:
 
     # Copy the original frame
     original_frame = mat.copy()
@@ -138,19 +138,19 @@ def background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours = __filter_contours(contours=contours, min_area=min_area, max_area=max_area)
 
-    bounding_boxes = []
+    bounding_boxes = [cv2.boundingRect(contour) for contour in contours]
 
     # Draw bounding boxes around detected motion
-    for contour in contours:
+    # for contour in contours:
 
-        x, y, w, h = cv2.boundingRect(contour)
-        bounding_boxes.append((x, y, w, h))
+    #     x, y, w, h = cv2.boundingRect(contour)
+    #     bounding_boxes.append((x, y, w, h))
 
-        cv2.rectangle(original_frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+    #     cv2.rectangle(original_frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
-    return original_frame, bounding_boxes
+    return bounding_boxes
 
-def adaptive_background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, alpha: float, min_area: int = None, max_area: int = None, reset: bool = False) -> tuple[np.ndarray, list[tuple]]:
+def adaptive_background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, alpha: float, min_area: int = None, max_area: int = None, reset: bool = False) -> list[tuple]:
 
     # Check alpha
     assert alpha >= 0 and alpha <= 1, "Alpha must be a number in the interval [0, 1]"
@@ -192,22 +192,22 @@ def adaptive_background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat |
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours = __filter_contours(contours=contours, min_area=min_area, max_area=max_area)
 
-    bounding_boxes = []
+    bounding_boxes = [cv2.boundingRect(contour) for contour in contours]
 
     # Draw bounding boxes around detected motion
-    for contour in contours:
+    # for contour in contours:
 
-        x, y, w, h = cv2.boundingRect(contour)
-        bounding_boxes.append((x, y, w, h))
+    #     x, y, w, h = cv2.boundingRect(contour)
+    #     bounding_boxes.append((x, y, w, h))
 
-        cv2.rectangle(original_frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+    #     cv2.rectangle(original_frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
     # Update background (adaption step)
     function.background = cv2.addWeighted(frame, alpha, function.background, 1 - alpha, 0)
 
-    return original_frame, bounding_boxes
+    return bounding_boxes
 
-def gaussian_average(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, alpha: float, min_area: int = None, max_area: int = None, reset: bool = False) -> tuple[np.ndarray, list[tuple]]:
+def gaussian_average(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, alpha: float, min_area: int = None, max_area: int = None, reset: bool = False) -> list[tuple]:
 
     # Check alpha
     assert alpha >= 0 and alpha <= 1, "Alpha must be a number in the interval [0, 1]"
@@ -252,14 +252,14 @@ def gaussian_average(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, backg
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours = __filter_contours(contours=contours, min_area=min_area, max_area=max_area)
 
-    bounding_boxes = []
+    bounding_boxes = [cv2.boundingRect(contour) for contour in contours]
 
     # Draw bounding boxes around detected motion
-    for contour in contours:
+    # for contour in contours:
 
-        x, y, w, h = cv2.boundingRect(contour)
-        bounding_boxes.append((x, y, w, h))
+    #     x, y, w, h = cv2.boundingRect(contour)
+    #     bounding_boxes.append((x, y, w, h))
 
-        cv2.rectangle(original_frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+    #     cv2.rectangle(original_frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
     
-    return original_frame, bounding_boxes
+    return bounding_boxes

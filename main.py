@@ -438,7 +438,7 @@ def __stitching(frame_top: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, fram
     # Crop
     return stitched_frame[300:-300, 150:-150]
 
-def __motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, detection_type: int, time_window: int = 1, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat = None, alpha: float = None, min_area: int = None, max_area: int = None, reset: bool = False) -> tuple[np.ndarray, list[tuple]]:
+def __motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, detection_type: int, time_window: int = 1, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat = None, alpha: float = None, min_area: int = None, max_area: int = None, reset: bool = False) -> list[tuple]:
 
     assert detection_type in [1,2,3, 4], "Invalid motion detection type"
 
@@ -572,7 +572,7 @@ def __motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, d
 
         return motion_detection.gaussian_average(**args)
 
-def __ball_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, model: YOLO) -> np.ndarray:
+def __ball_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, model: YOLO) -> dict | None:
 
     # Resize the frame 
     original_frame = frame.copy()
@@ -590,47 +590,39 @@ def __ball_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, mod
     scale_y = h_orig / h_resized
 
     # Extract bounding boxes
+    best_ball = {}
+
     for result in results:
         for box in result.boxes:
-
-            # Extract coordinates
-            x1, y1, x2, y2 = map(int, box.xyxy[0])
             
-            # Class and confidence
-            class_id = int(box.cls[0])
+            # Get confidence
             confidence = box.conf[0]
 
-            # Tracking ID
-            track_id = box.id[0] if box.id is not None else None
-
             # Extract class label
+            class_id = int(box.cls[0])
             label = params.YOLO_CLASS_MAP.get(class_id, params.YOLO_CLASS.UNKNOWN)
 
-            if label == params.YOLO_CLASS.PLAYER:
-                color = (0, 0, 255)
-            elif label == params.YOLO_CLASS.BALL:
-                color = (0, 255, 0)
-            else:
-                color = (255, 255, 255)
-
-            # Convert actual coordinates into original image coordinates
-            x1 = int(x1 * scale_x)
-            y1 = int(y1 * scale_y)
-            x2 = int(x2 * scale_x)
-            y2 = int(y2 * scale_y)
-
             # Draw bounding box based on a threshold
-            if confidence > params.YOLO_CONFIDENCE and label == params.YOLO_CLASS.BALL:
-                cv2.rectangle(original_frame, (x1, y1), (x2, y2), color, 2)
+            if confidence > params.YOLO_CONFIDENCE and label == params.YOLO_CLASS.BALL and best_ball.get("confidence", -1) < confidence:
 
-                # Create bounding box text
+                # Extract coordinates
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+
+                # Convert actual coordinates into original image coordinates
+                x1 = int(x1 * scale_x)
+                y1 = int(y1 * scale_y)
+                x2 = int(x2 * scale_x)
+                y2 = int(y2 * scale_y)
+
                 text = f"{label.value}: {confidence:.2f}"
-                if track_id is not None:
-                    text += f" ID: {track_id}"
 
-                cv2.putText(original_frame, text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                best_ball = {
+                    "confidence": confidence,
+                    "bounding_box": ((x1, y1), (x2, y2)),
+                    "text": text
+                }
 
-    return original_frame
+    return best_ball if len(best_ball) else None
 
 def process_videos(videos: list[str], live: bool = True) -> None:
     
@@ -708,13 +700,15 @@ def process_videos(videos: list[str], live: bool = True) -> None:
 
         #! Motion detection
         if MOTION_DETECTION:
-            motion_detection_frame, motion_detection_bounding_boxes = __motion_detection(frame=stitched_frame, detection_type=motion_detection.BACKGROUND_SUBSTRACTION, background=background, min_area=4000)
-            processed_frame = motion_detection_frame
+            motion_detection_bounding_boxes = __motion_detection(frame=stitched_frame, detection_type=motion_detection.BACKGROUND_SUBSTRACTION, background=background, min_area=4000)
+        else:
+            motion_detection_bounding_boxes = []
 
         #! Motion tracking
         if MOTION_TRACKING and MOTION_DETECTION:
-            motion_tracking_frame, motion_tracking_results = motion_tracking.particle_filtering(mat=processed_frame, bounding_boxes=motion_detection_bounding_boxes)
-            processed_frame = motion_tracking_frame
+            motion_tracking_results = motion_tracking.particle_filtering(mat=processed_frame, bounding_boxes=motion_detection_bounding_boxes)
+        else:
+            motion_tracking_results = []
 
         #! Team identification
         # if TEAM_IDENTIFICATION:
@@ -722,11 +716,29 @@ def process_videos(videos: list[str], live: bool = True) -> None:
 
         #! Ball detection
         if BALL_DETECTION:
-            processed_frame = __ball_detection(frame=processed_frame, model=model)
+            ball_bounding_box = __ball_detection(frame=processed_frame, model=model)
     
         #! Ball tracking
         if BALL_TRACKING:
             pass
+
+        # Draw
+        for x, y, w, h in motion_detection_bounding_boxes:
+            cv2.rectangle(processed_frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+
+        for obj in list(motion_tracking_results.values()):
+            origin = obj["origin"]
+            estimated = obj["estimated"]
+
+            cv2.arrowedLine(processed_frame, origin, estimated, (0, 0, 255), 4, tipLength=0.25)
+
+        if ball_bounding_box is not None:
+
+            (x1, y1), (x2, y2) = ball_bounding_box["bounding_box"]
+            text = ball_bounding_box["text"]
+
+            cv2.rectangle(processed_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(processed_frame, text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
         # Show processed video
         if live:
