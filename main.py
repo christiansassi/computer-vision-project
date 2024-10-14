@@ -6,15 +6,13 @@ import sys
 import inspect
 from ultralytics import YOLO
 from time import time
-
+import statistics
 import cv2
 import numpy as np
 
 # Clear screen
-if os.name == "nt":
-    system("cls")
-else:
-    system("clear")
+clear_screen = lambda: system("cls") if os.name == "nt" else system("clear")
+clear_screen()
 
 # Setup logger
 from src import wrapped_logging_handler
@@ -46,7 +44,13 @@ def cleanup(signum, frame):
     global OUTPUT_VIDEO
 
     if OUTPUT_VIDEO is not None:
-        print("")
+        
+        sys.stdout.write("")
+        sys.stdout.write(f"\033[B" * params.NUM_LINES)
+        sys.stdout.flush()
+
+        print("\n")
+
         logger.info(f"Saving video...\n")
         OUTPUT_VIDEO.release()
         logger.info(f"Video saved to '{params.PROCESSED_VIDEO}'\n")
@@ -688,7 +692,12 @@ def process_videos(videos: list[str], live: bool = True) -> None:
     output_video = None
 
     # Process videos
-    logger.info(f"\033[32mPress Ctrl+C to exit\033[0m\n")
+    logger.info(f"\033[32mPress Ctrl+C to exit\033[0m\n\n")
+
+    # Performance evaluation
+    elapsed = time()
+    fps = 0
+    times = []
 
     while True:
 
@@ -713,7 +722,7 @@ def process_videos(videos: list[str], live: bool = True) -> None:
             motion_detection_time = time() - motion_detection_time
         else:
             motion_detection_bounding_boxes = []
-            motion_detection_time = 0
+            motion_detection_time = None
 
         #! Motion tracking
         if MOTION_TRACKING and MOTION_DETECTION and len(motion_detection_bounding_boxes):
@@ -722,7 +731,7 @@ def process_videos(videos: list[str], live: bool = True) -> None:
             motion_tracking_time = time() - motion_tracking_time
         else:
             motion_tracking_results = {}
-            motion_tracking_time = 0
+            motion_tracking_time = None
 
         #! Team identification
         # if TEAM_IDENTIFICATION:
@@ -734,7 +743,7 @@ def process_videos(videos: list[str], live: bool = True) -> None:
             ball = __ball_detection(frame=processed_frame, model=model)
             ball_detection_time = time() - ball_detection_time
         else:
-            ball_detection_time = 0
+            ball_detection_time = None
     
         #! Ball tracking
         if BALL_TRACKING and BALL_DETECTION and ball is not None:
@@ -743,7 +752,9 @@ def process_videos(videos: list[str], live: bool = True) -> None:
             ball_tracking_time = time() - ball_tracking_time
         else:
             ball_tracking_results = {}
-            ball_tracking_time = 0
+            ball_tracking_time = None
+
+        other_time = time()
 
         # Draw
         for x, y, w, h in motion_detection_bounding_boxes:
@@ -771,8 +782,7 @@ def process_videos(videos: list[str], live: bool = True) -> None:
 
         # Show processed video
         if live:
-            
-            # cv2.imwrite(f"training_dataset/frame_{int(video_top.get(cv2.CAP_PROP_POS_FRAMES))}.png", processed_frame)
+
             cv2.imshow("Processed video", cv2.resize(processed_frame, (processed_frame.shape[1] // 2, processed_frame.shape[0] // 2)))
             
             if cv2.waitKey(25) & 0xFF == ord("q"):
@@ -790,17 +800,61 @@ def process_videos(videos: list[str], live: bool = True) -> None:
 
             OUTPUT_VIDEO = output_video
 
+        if time() - elapsed > 1:
+            elapsed = time()
+            fps = 1
+        else:
+            fps = fps + 1
+
         output_video.write(processed_frame)
 
-        info_log = f"Processing {int(video_top.get(cv2.CAP_PROP_POS_FRAMES)) + 1} / {total_frames_number}\n"
+        # Calculate total time
+        total_time = sum([t for t in [stitching_time, motion_detection_time, motion_tracking_time, ball_detection_time, ball_tracking_time] if t is not None])
+        other_time = time() - other_time
 
-        info_log = f"\nStitching time: {round(motion_detection_time)}\n"
-        info_log = f"\nMotion detection: {round(motion_detection_time)}\n"
-        info_log = f"\nMotion tracking: {round(motion_tracking_time)}\n"
-        info_log = f"\nBall detection: {round(ball_detection_time)}\n"
-        info_log = f"\nBall tracking: {round(ball_tracking_time)}\r"
+        total_time = total_time + other_time
 
-        logger.info(info_log)
+        # Calculate AVG. time
+        times.append(total_time)
+
+        if len(times) >= 10:
+            times.pop(0)
+
+        avg_total_time = statistics.mean(times)
+
+        # Print performances
+        info_log1 = (
+            f"{' '*100}\n"
+            f"{' '*100}\n"
+            f"{' '*100}\n"
+            f"{' '*100}\n"
+            f"{' '*100}\n"
+            f"{' '*100}\n"
+            f"{' '*100}\n"
+            f"{' '*100}\n"
+            f"{' '*100}"
+        )
+
+        info_log2 = (
+            f"Processing             {int(video_top.get(cv2.CAP_PROP_POS_FRAMES)) + 1} / {total_frames_number}  \n\n"
+
+            f"Stitching time:        {round(stitching_time, 2)}  \n"
+            f"Motion detection:      {round(motion_detection_time, 2) if motion_detection_time is not None else '-'}  \n"
+            f"Motion tracking:       {round(motion_tracking_time, 2) if motion_tracking_time is not None else '-'}  \n"
+            f"Ball detection:        {round(ball_detection_time, 2) if ball_detection_time is not None else '-'}  \n"
+            f"Ball tracking:         {round(ball_tracking_time, 2) if ball_tracking_time is not None else '-'}  \n"
+
+            f"Avg. total time:       {round(avg_total_time, 2)}  \n"
+            f"FPS:                   {round(fps, 2)}  "
+        )
+
+        sys.stdout.write(info_log1)
+        sys.stdout.write(f"\033[F" * params.NUM_LINES)
+        sys.stdout.flush()
+
+        sys.stdout.write(info_log2)
+        sys.stdout.write(f"\033[F" * params.NUM_LINES)
+        sys.stdout.flush()
 
     # Cleanup
     cv2.destroyAllWindows()

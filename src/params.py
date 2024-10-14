@@ -4,6 +4,8 @@ from enum import Enum
 
 #? CONST
 
+NUM_LINES = 8
+
 VALUE = 0.99 # Value for matching keypoints
 ANGLE = 2 # Angle for matching keypoints
 BACKGROUND_FRAME = 5376 # Background reference for background motion detection algorithms
