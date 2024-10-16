@@ -1,9 +1,22 @@
 # Top view stitching and tracking (tracking and geometry)
 
-<div align="center">
+<div>
     <img src="https://img.shields.io/badge/python-3670A0?style=flat&logo=python&logoColor=ffdd54" alt="Python"/>
     <img src="https://img.shields.io/badge/yolo-11-00FFFF" alt="Yolo 11"/>
 </div>
+
+# Table of contents
+
+-   [Introduction](#introduction)
+-   [Code overview](#code-overview)
+-   [Getting started](#getting-started)
+-   [Contacts](#contacts)
+
+# Introduction
+
+# Code overview
+
+# Getting started
 
 # Contacts
 
