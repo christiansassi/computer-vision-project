@@ -24,6 +24,20 @@ This project focuses on processing video camera images from the Sanbapolis facil
 
 # Getting Started
 
+1. Set up the workspace:
+
+    ```bash
+    git clone https://github.com/christiansassi/computer-vision-project
+    cd computer-vision-project
+    pip install -r requirements.txt
+    ```
+
+2. To execute the project, simply run the [main.py](main.py) script:
+
+    ```bash
+    python3 main.py
+    ```
+    
 # Contacts
 
 Pietro Bologna - [pietro.bologna@studenti.unitn.it](mailto:pietro.bologna@studenti.unitn.it)
