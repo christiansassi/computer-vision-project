@@ -37,7 +37,10 @@ This project focuses on processing video camera images from the Sanbapolis facil
     ```bash
     python3 main.py
     ```
-    
+
+> [!WARNING]
+> Due to privacy reasons, the video files cannot be shared.
+
 # Contacts
 
 Pietro Bologna - [pietro.bologna@studenti.unitn.it](mailto:pietro.bologna@studenti.unitn.it)
