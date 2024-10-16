@@ -9,6 +9,10 @@
 
 -   [Project Overview](#project-overview)
 -   [Code Overview](#code-overview)
+    - [Top-View Court Stitching](#top-view-court-stitching)
+    - [Object Detection on Top-View Images](#object-detection-on-top-view-images)
+    - [Object Tracking](#object-tracking)
+    - [Ball Detection and Tracking](#ball-detection-and-tracking)
 -   [Getting Started](#getting-started)
 -   [Contacts](#contacts)
 
@@ -21,6 +25,11 @@ This project focuses on processing video camera images from the Sanbapolis facil
 - **Ball Detection and Tracking**: for ball detection and tracking, we used the YOLO (You Only Look Once) algorithm, which proved suitable for this task.
 
 # Code Overview
+
+## Top-View Court Stitching
+## Object Detection on Top-View Images
+## Object Tracking
+## Ball Detection and Tracking
 
 # Getting Started
 
