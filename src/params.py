@@ -10,15 +10,17 @@ VALUE = 0.99 # Value for matching keypoints
 ANGLE = 2 # Angle for matching keypoints
 BACKGROUND_FRAME = 5376 # Background reference for background motion detection algorithms
 
-# Volleyball field mask
-VOLLEYBALL_FIELD = [(76, 139), (1271, 90), (2274, 102), (2250, 649), (2234, 828), (2173, 1304), (67, 1228), (51, 719), (76, 139)]
-VOLLEYBALL_FIELD_TOLERANCE = 0
+VOLLEYBALL_FIELD = [(76, 139), (1271, 90), (2274, 102), (2250, 649), (2234, 828), (2173, 1304), (67, 1228), (51, 719), (76, 139)] # Volleyball field mask
+VOLLEYBALL_FIELD_TOLERANCE = 0 # Volleyball field mask tolerance
+VOLLEYBALL_NET = [(972, 1423), (996,0)] # Volleyball net
 
+# Motion tracking variables
 NUMBER_OF_PARTICLES = 500
 MEASUREMENT_NOISE_STD = 50
 STDDEV = 15
 DISTANCE = 300
 
+# Stitching variables
 TOP = {
     "div_left": 899,
     "div_right": 3194,
@@ -100,10 +102,14 @@ YOLO_CLASS_MAP = {
     1: YOLO_CLASS.PLAYER
 }
 
-#? USER
+# TEAM IDENTIFICATION
+TEAM_1_COLOR = (0, 0, 255) #BGR
+TEAM_1_LABEL = "TEAM 1"
+TEAM_2_COLOR = (255, 0, 0) #BGR
+TEAM_2_LABEL = "TEAM 2"
 
+# Folders
 ROOT = "videos"
-
 ORIGINAL_VIDEOS_FOLDER = join(ROOT, "original")
 CUT_VIDEOS_FOLDER = join(ROOT, "cut")
 PROCESSED_VIDEOS_FOLDER = join(ROOT, "processed")

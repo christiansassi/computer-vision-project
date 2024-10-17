@@ -106,7 +106,6 @@ class ParticleFilter:
 
 def particle_filtering(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, bounding_boxes: list[tuple], reset: bool = False) -> dict:
 
-    frame = mat.copy()
     height, width = mat.shape[:2]
 
     function = eval(inspect.stack()[0][3])

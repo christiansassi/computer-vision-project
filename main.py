@@ -1,6 +1,6 @@
 import os
-from os import listdir, mkdir, system
-from os.path import join, exists, basename
+from os import listdir, mkdir, system, remove
+from os.path import join, exists, basename, isfile
 import signal
 import sys
 import inspect
@@ -24,6 +24,7 @@ from src import blending
 from src import cut_video
 from src import motion_detection
 from src import motion_tracking
+from src import team_identification
 from src import params
 from src import stitch_image
 from src import utils
@@ -33,7 +34,7 @@ print("DONE")
 # Select
 MOTION_DETECTION = True
 MOTION_TRACKING = True
-TEAM_IDENTIFICATION = False
+TEAM_IDENTIFICATION = True
 BALL_DETECTION = True
 BALL_TRACKING = True
 
@@ -723,19 +724,34 @@ def process_videos(videos: list[str], live: bool = True) -> None:
         else:
             motion_detection_bounding_boxes = []
             motion_detection_time = None
-
+        
         #! Motion tracking
-        if MOTION_TRACKING and MOTION_DETECTION and len(motion_detection_bounding_boxes):
+        if MOTION_TRACKING and len(motion_detection_bounding_boxes):
             motion_tracking_time = time()
             motion_tracking_results = motion_tracking.particle_filtering(mat=processed_frame, bounding_boxes=motion_detection_bounding_boxes)
             motion_tracking_time = time() - motion_tracking_time
+
         else:
             motion_tracking_results = {}
             motion_tracking_time = None
 
         #! Team identification
-        # if TEAM_IDENTIFICATION:
-        #     pass
+        if TEAM_IDENTIFICATION and len(motion_detection_bounding_boxes):
+            team_1, team_2 = team_identification.identify_teams(bounding_boxes=motion_detection_bounding_boxes)
+
+            motion_tracking_team_1 = {}
+            motion_tracking_team_2 = {}
+
+            for bounding_box in motion_tracking_results:
+                
+                if bounding_box in team_1:
+                    motion_tracking_team_1[bounding_box] = motion_tracking_results[bounding_box]
+                
+                elif bounding_box in team_2:
+                    motion_tracking_team_2[bounding_box] = motion_tracking_results[bounding_box]
+        else:
+            team_1, team_2 = [], []
+            motion_tracking_team_1, motion_tracking_team_2 = {}, {}
 
         #! Ball detection
         if BALL_DETECTION:
@@ -757,14 +773,36 @@ def process_videos(videos: list[str], live: bool = True) -> None:
         other_time = time()
 
         # Draw
-        for x, y, w, h in motion_detection_bounding_boxes:
-            cv2.rectangle(processed_frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+        if TEAM_IDENTIFICATION:
+            for x, y, w, h in team_1:
+                cv2.putText(processed_frame, params.TEAM_1_LABEL, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, params.TEAM_1_COLOR, 2)
+                cv2.rectangle(processed_frame, (x, y), (x + w, y + h), params.TEAM_1_COLOR, 2)
+            
+            for x, y, w, h in team_2:
+                cv2.putText(processed_frame, params.TEAM_2_LABEL, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, params.TEAM_2_COLOR, 2)
+                cv2.rectangle(processed_frame, (x, y), (x + w, y + h), params.TEAM_2_COLOR, 2)
 
-        for obj in list(motion_tracking_results.values()):
-            origin = obj["origin"]
-            estimated = obj["estimated"]
+            for obj in list(motion_tracking_team_1.values()):
+                origin = obj["origin"]
+                estimated = obj["estimated"]
 
-            cv2.arrowedLine(processed_frame, origin, estimated, (0, 0, 255), 4, tipLength=0.25)
+                cv2.arrowedLine(processed_frame, origin, estimated, params.TEAM_1_COLOR, 4, tipLength=0.25)
+            
+            for obj in list(motion_tracking_team_2.values()):
+                origin = obj["origin"]
+                estimated = obj["estimated"]
+
+                cv2.arrowedLine(processed_frame, origin, estimated,params.TEAM_2_COLOR, 4, tipLength=0.25)
+
+        elif MOTION_DETECTION:
+            for x, y, w, h in motion_detection_bounding_boxes:
+                cv2.rectangle(processed_frame, (x, y), (x + w, y + h), (255, 0, 255), 2)
+
+            for obj in list(motion_tracking_results.values()):
+                origin = obj["origin"]
+                estimated = obj["estimated"]
+
+                cv2.arrowedLine(processed_frame, origin, estimated, (255, 0, 255), 4, tipLength=0.25)
 
         if ball is not None:
 
@@ -791,10 +829,13 @@ def process_videos(videos: list[str], live: bool = True) -> None:
         # Save processed video
         if output_video is None:
 
+            if isfile(params.PROCESSED_VIDEO):
+                remove(params.PROCESSED_VIDEO)
+
             output_video = cv2.VideoWriter(
                 filename=params.PROCESSED_VIDEO, # Specify output file
                 fourcc=cv2.VideoWriter_fourcc(*"mp4v"), # Specify video type
-                fps=int(min(video_top.get(cv2.CAP_PROP_FPS), video_center.get(cv2.CAP_PROP_FPS), video_bottom.get(cv2.CAP_PROP_FPS))), # Same fps of the original video
+                fps=18, #int(min(video_top.get(cv2.CAP_PROP_FPS), video_center.get(cv2.CAP_PROP_FPS), video_bottom.get(cv2.CAP_PROP_FPS))), # Same fps of the original video
                 frameSize=processed_frame.shape[:2][::-1] # Specify shape (width, height)
             )
 
@@ -878,4 +919,4 @@ if __name__ == "__main__":
     videos = __cut_video(videos=videos)
 
     #? Process videos
-    process_videos(videos=videos)
+    process_videos(videos=videos, live=False)

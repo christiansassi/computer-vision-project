@@ -41,7 +41,7 @@ This project focuses on processing video camera images from the Sanbapolis facil
     pip install -r requirements.txt
     ```
 
-2. To execute the project, simply run the [main.py](main.py) script:
+2. Run [main.py](main.py) script:
 
     ```bash
     python3 main.py
@@ -49,6 +49,12 @@ This project focuses on processing video camera images from the Sanbapolis facil
 
 > [!WARNING]
 > Due to privacy reasons, the video files cannot be shared.
+
+<p align="center" text-align="center">
+  <img width="75%" src="assets/demo/demo.gif">
+  <br>
+  <span><i>Demo</i></span>
+</p>
 
 # Contacts
 
