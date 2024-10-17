@@ -27,8 +27,66 @@ This project focuses on processing video camera images from the Sanbapolis facil
 # Code Overview
 
 ## Top-View Court Stitching
+
 ## Object Detection on Top-View Images
+Several detection algorithms were applied to the stitched top-view images, testing various techniques from coursework, including frame subtraction, background subtraction, adaptive background subtraction, and Gaussian averaging. After evaluation, background subtraction was selected as the most effective method.
+
+The first step involves applying a threshold to the image to extract the most relevant areas. During this phase, dilation is applied to account for stitching errors that sometimes cause players to be incorrectly displayed as separate objects. The dilation helps merge these separated segments into a single object. Additionally, small areas are discarded:
+
+<p align="center" text-align="center"> 
+    <img width="75%" src="assets/motion_detection/motion_detection_1.png"> 
+    <br> 
+    <span><i>Thresholded image</i></span> 
+</p>
+
+Next, contours are filtered based on the volleyball court area. The court's boundaries are defined, and objects that intercept this area by 25% or more are retained. This approach helps discard irrelevant objects, such as people outside the court (e.g., coaches) who may briefly step into the frame:
+
+<p align="center" text-align="center"> 
+    <img width="75%" src="assets/motion_detection/motion_detection_2.png"> 
+    <br> 
+    <span><i>Volleyball field mask</i></span> 
+</p>
+
+By combining these two techniques, the following result was achieved:
+
+<p align="center" text-align="center"> 
+    <img width="75%" src="assets/motion_detection/motion_detection_3.png"> 
+    <br> 
+    <span><i>Motion detection</i></span> 
+</p>
+
 ## Object Tracking
+
+For tracking detected objects (bounding boxes), particle filtering was implemented, a technique studied during the course. As this method performed well, further exploration of additional techniques was deemed unnecessary.
+
+For each detected bounding box, a new particle system was initialized. Initially, the particles in each system exhibited chaotic behavior due to the randomness at the start:
+
+<p align="center" text-align="center"> 
+    <img width="75%" src="assets/motion_tracking/motion_tracking_1.png"> 
+    <br> 
+    <span><i>Initial particle system</i></span> 
+</p>
+
+At each iteration, the particle systems were compared with the updated bounding boxes to determine if a particle system still had an associated bounding box (i.e., the object is still detected) or if a new system was required (i.e., the object is no longer detected, or a new object has appeared).
+
+To associate a particle system with its corresponding bounding box, the distance between the centroid of the particle system and the bounding box was evaluated. A particle system was associated with a bounding box if it had the smallest distance to that bounding box. Otherwise, if no suitable particle system was found, a new one was created.
+
+Through repeated iterations, the randomness within each particle system diminished:
+
+<p align="center" text-align="center"> 
+    <img width="75%" src="assets/motion_tracking/motion_tracking_2.png"> 
+    <br> 
+    <span><i>Particle system after some iterations</i></span> 
+</p>
+
+Finally, the particle systems were used to predict the possible direction of a moving object. It is important to note that for small movements, the direction arrow may appear slow and less certain. Additionally, if an object makes a sudden, fast movement, the particle system may require a few iterations to adapt, potentially resulting in incorrect predictions during those iterations.
+
+<p align="center" text-align="center"> 
+    <img width="75%" src="assets/motion_tracking/motion_tracking_3.png"> 
+    <br> 
+    <span><i>Motion tracking</i></span> 
+</p>
+
 ## Ball Detection and Tracking
 
 # Getting Started

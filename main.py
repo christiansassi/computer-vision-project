@@ -759,6 +759,7 @@ def process_videos(videos: list[str], live: bool = True) -> None:
             ball = __ball_detection(frame=processed_frame, model=model)
             ball_detection_time = time() - ball_detection_time
         else:
+            ball = None
             ball_detection_time = None
     
         #! Ball tracking
