@@ -89,6 +89,10 @@ Finally, the particle systems were used to predict the possible direction of a m
 
 ## Ball Detection and Tracking
 
+For ball detection and tracking, the YOLO (You Only Look Once) algorithm was employed, as it proved well-suited for this task. Due to the ball’s high velocity, it often appeared distorted in some frames, making it difficult to detect using traditional techniques.
+
+The first step involved creating a dataset specifically for this task. Approximately 1,000 images were manually extracted from the videos, selecting both the players and the ball (when present). YOLO v11 was then applied to this dataset, producing the following result:
+
 # Getting Started
 
 1. Set up the workspace:
