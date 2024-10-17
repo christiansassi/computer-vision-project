@@ -5,9 +5,9 @@ from shapely.geometry import Polygon, LineString, Point
 
 from src import params
 
-FRAME_SUBSTRACTION: int = 1
-BACKGROUND_SUBSTRACTION: int = 2
-ADAPTIVE_BACKGROUND_SUBSTRACTION: int = 3
+FRAME_SUBTRACTION: int = 1
+BACKGROUND_SUBTRACTION: int = 2
+ADAPTIVE_BACKGROUND_SUBTRACTION: int = 3
 GAUSSIAN_AVERAGE: int = 4
 
 def __filter_contours(contours: tuple, min_area: int = None, max_area: int = None) -> tuple:
@@ -49,10 +49,7 @@ def __filter_contours(contours: tuple, min_area: int = None, max_area: int = Non
 
     return tuple(intercepted_contours)
 
-def frame_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, time_window: int = 1, min_area: int = None, max_area: int = None, reset: bool = False) -> list[tuple]:
-
-    # Copy the original frame
-    original_frame = mat.copy()
+def frame_subtraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, time_window: int = 1, min_area: int = None, max_area: int = None, reset: bool = False) -> list[tuple]:
 
     # Store the previous frame
     function = eval(inspect.stack()[0][3])
@@ -110,10 +107,7 @@ def frame_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, tim
 
     return bounding_boxes
 
-def background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, min_area: int = None, max_area: int = None) -> list[tuple]:
-
-    # Copy the original frame
-    original_frame = mat.copy()
+def background_subtraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, min_area: int = None, max_area: int = None) -> list[tuple]:
 
     # Convert background to gray and apply gaussian blur
     _background = background.copy()
@@ -150,13 +144,10 @@ def background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat
 
     return bounding_boxes
 
-def adaptive_background_substraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, alpha: float, min_area: int = None, max_area: int = None, reset: bool = False) -> list[tuple]:
+def adaptive_background_subtraction(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, background: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, alpha: float, min_area: int = None, max_area: int = None, reset: bool = False) -> list[tuple]:
 
     # Check alpha
     assert alpha >= 0 and alpha <= 1, "Alpha must be a number in the interval [0, 1]"
-
-    # Copy the original frame
-    original_frame = mat.copy()
 
     # Store the background frame so we can update it
     function = eval(inspect.stack()[0][3])
@@ -211,9 +202,6 @@ def gaussian_average(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, backg
 
     # Check alpha
     assert alpha >= 0 and alpha <= 1, "Alpha must be a number in the interval [0, 1]"
-
-    # Copy the original frame
-    original_frame = mat.copy()
 
     # Store the background frame so we can update it
     function = eval(inspect.stack()[0][3])

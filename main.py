@@ -449,9 +449,9 @@ def __motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, d
 
     assert detection_type in [1,2,3, 4], "Invalid motion detection type"
 
-    if detection_type == motion_detection.FRAME_SUBSTRACTION:
+    if detection_type == motion_detection.FRAME_SUBTRACTION:
 
-        # Apply frame substraction
+        # Apply frame subtraction
         #* PROS
         #* [+] None (for this purpose)
 
@@ -459,7 +459,7 @@ def __motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, d
         #! [-] Stops detecting an object if it stops moving
         #! [-] A larger window can avoid the previous problem but would negatively impact detection quality
 
-        # Apply background substraction
+        # Apply background subtraction
         #* PROS
         #* [+] Good since the background doesn't change too much (for this purpose)
         #* [+] Keeps detecting objects even if they stop moving
@@ -484,11 +484,11 @@ def __motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, d
             assert isinstance(max_area, int) and max_area > 0, "Invalid maximum area"
             args["max_area"] = max_area
 
-        return motion_detection.frame_substraction(**args)
+        return motion_detection.frame_subtraction(**args)
 
-    elif detection_type == motion_detection.BACKGROUND_SUBSTRACTION:
+    elif detection_type == motion_detection.BACKGROUND_SUBTRACTION:
 
-        # Apply background substraction
+        # Apply background subtraction
         #* PROS
         #* [+] Good since the background doesn't change too much (for this purpose)
         #* [+] Keeps detecting objects even if they stop moving
@@ -511,11 +511,11 @@ def __motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, d
             assert isinstance(max_area, int) and max_area > 0, "Invalid maximum area"
             args["max_area"] = max_area
 
-        return motion_detection.background_substraction(**args)
+        return motion_detection.background_subtraction(**args)
 
-    elif detection_type == motion_detection.ADAPTIVE_BACKGROUND_SUBSTRACTION:
+    elif detection_type == motion_detection.ADAPTIVE_BACKGROUND_SUBTRACTION:
 
-        # Apply adaptive substraction
+        # Apply adaptive subtraction
         #* PROS
         #* [+] Good for this purpose since the background doesn't change too much
         #* [+] Compared to normal background subtraction, it adapts to small background changes
@@ -544,7 +544,7 @@ def __motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, d
             assert isinstance(max_area, int) and max_area > 0, "Invalid maximum area"
             args["max_area"] = max_area
 
-        return motion_detection.adaptive_background_substraction(**args)
+        return motion_detection.adaptive_background_subtraction(**args)
 
     elif detection_type == motion_detection.GAUSSIAN_AVERAGE:
 
@@ -719,7 +719,7 @@ def process_videos(videos: list[str], live: bool = True) -> None:
         #! Motion detection
         if MOTION_DETECTION:
             motion_detection_time = time()
-            motion_detection_bounding_boxes = __motion_detection(frame=stitched_frame, detection_type=motion_detection.BACKGROUND_SUBSTRACTION, background=background, min_area=4000)
+            motion_detection_bounding_boxes = __motion_detection(frame=stitched_frame, detection_type=motion_detection.BACKGROUND_SUBTRACTION, background=background, min_area=4000)
             motion_detection_time = time() - motion_detection_time
         else:
             motion_detection_bounding_boxes = []
@@ -908,6 +908,8 @@ def process_videos(videos: list[str], live: bool = True) -> None:
     output_video.release()
 
 if __name__ == "__main__":
+
+    #TODO: calculating stitching parameters -> timer
 
     # Handle system signals
     signal.signal(signal.SIGINT, cleanup)
