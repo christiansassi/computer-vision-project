@@ -920,4 +920,4 @@ if __name__ == "__main__":
     videos = __cut_video(videos=videos)
 
     #? Process videos
-    process_videos(videos=videos, live=False)
+    process_videos(videos=videos)
