@@ -2,7 +2,7 @@
 
 <div>
     <img src="https://img.shields.io/badge/python-3670A0?style=flat&logo=python&logoColor=ffdd54" alt="Python"/>
-    <img src="https://img.shields.io/badge/YOLO-11-00FFFF" alt="Yolo 11"/>
+    <img src="https://tinyurl.com/cvyolo11" alt="Yolo 11"/>
 </div>
 
 # Table of contents
