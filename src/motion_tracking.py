@@ -4,15 +4,19 @@ import inspect
 import math
 import distinctipy
 
+from uuid import uuid4
+
 from src import params
 
 class ParticleFilter:
 
-    COLORS_HISTORY = [distinctipy.get_rgb256(color)[::-1] for color in distinctipy.get_colors(n_colors=25, pastel_factor=1)]
+    COLORS_HISTORY = [distinctipy.get_rgb256(color)[::-1] for color in distinctipy.get_colors(n_colors=25, pastel_factor=0)]
     COLORS = COLORS_HISTORY.copy()
 
     def __init__(self, width: int, height: int, number_of_particles: int, bounding_box: tuple) -> None:
         
+        self.id = str(uuid4())
+
         self.width = width
         self.height = height
         self.number_of_particles = number_of_particles
@@ -39,7 +43,9 @@ class ParticleFilter:
             ParticleFilter.COLORS.extend(new_colors)
 
         self.color = ParticleFilter.COLORS.pop()
-            
+        
+        self.points = []
+
     def __del__(self):
 
         # try-except block used for handling script interruptions and the removal of the class
@@ -48,6 +54,13 @@ class ParticleFilter:
             ParticleFilter.COLORS.append(self.color)
         except:
             pass
+
+    def __eq__(self, value):
+        
+        if isinstance(value, ParticleFilter):
+            return self.id == value.id
+
+        return False
 
     def __update_weights(self, centroid, measurement_noise_std=params.MEASUREMENT_NOISE_STD):
 
@@ -98,6 +111,16 @@ class ParticleFilter:
 
         return estimate_position, self.particles.copy()
 
+    def add_point(self, point: tuple):
+
+        if len(self.points) == params.MAX_POINTS:
+            self.points.pop(0)
+
+        self.points.append(point)
+    
+    def get_points(self) -> list:
+        return self.points.copy()
+
     def get_distance(self, centroid: np.ndarray) -> int:
         return math.dist(centroid, self.centroid)
 
@@ -126,92 +149,71 @@ def particle_filtering(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, bou
     # Make a copy of the particle systems
     particle_systems = function.particle_systems.copy()
 
-    # Calculate the distance between each bounding box and every particle system
-    distances = {}
+    # Calculate distances between each particle system and every bounding box
+    particle_systems_dict = {}
 
-    for bounding_box in bounding_boxes:
-        x, y, w, h = bounding_box
-        centroid = np.array([x + w / 2, y + h / 2])
+    for particle_system in particle_systems:
 
-        distances[bounding_box] = []
+        tmp = []
 
-        for particle_system in particle_systems:
-            distances[bounding_box].append([particle_system, particle_system.get_distance(centroid=centroid)])
+        for bounding_box in bounding_boxes:
+            x, y, w, h = bounding_box
+            centroid = np.array([x + w / 2, y + h / 2])
+            distance = particle_system.get_distance(centroid=centroid)
 
-    # Associate the best particle system to each bounding box based on distance
-    best_distances = {}
-
-    # Iterate through each bounding box to find the best particle system
-    for bounding_box1 in distances:
+            tmp.append([bounding_box, distance])
         
-        # Copy the particle system-distance pairs for the current bounding box
-        distances_for_box1 = distances[bounding_box1].copy()
+        tmp.sort(key=lambda x: x[1])
 
-        while True:
-            # Get the particle system with the smallest distance for this bounding box
-            best_particle_system1, best_distance1 = min(distances_for_box1, key=lambda item: item[1])
+        particle_systems_dict[particle_system.id] = {
+            "particle_system": particle_system,
+            "items": tmp
+        }
 
-            # Ensure the selected particle system is truly the best for this bounding box by comparing distances with other bounding boxes
-            keep = True
+    # Iterate over each particle system to choose the best bounding box (if any)
+    bounding_boxes_dict = {bounding_box: None for bounding_box in bounding_boxes}
 
-            for bounding_box2 in distances:
-                if bounding_box1 == bounding_box2:
-                    continue
+    for particle_system in particle_systems_dict.values():
+        particle_system, items = particle_system["particle_system"], particle_system["items"]
 
-                # Compare with the best particle system for the other bounding box
-                best_particle_system2, best_distance2 = min(distances[bounding_box2], key=lambda item: item[1])
+        for item in items:
 
-                # If another bounding box has a better claim to the particle system, re-evaluate the choice
-                if best_particle_system1 == best_particle_system2 and best_distance1 > best_distance2:
-                    keep = False
-                    break
+            bounding_box, distance = item
 
-            # If the particle system isn't the best choice, remove it and continue searching
-            if not keep:
-                distances_for_box1.remove([best_particle_system1, best_distance1])
+            x, y, w, h = bounding_box
+            centroid = np.array([x + w / 2, y + h / 2])
+            origin = (int(centroid[0]), int(centroid[1]))
 
-                # If no more pairs are available, create a new particle system for this bounding box
-                if not len(distances_for_box1):
-
-                    best_particle_system1 = ParticleFilter(width=width, height=height, number_of_particles=params.NUMBER_OF_PARTICLES, bounding_box=bounding_box1)
-                    best_distance1 = 0
-
-                    function.particle_systems.append(best_particle_system1)
-                    best_distances[bounding_box1] = [best_particle_system1, best_distance1]
-
-                    break
-            
-            else:
-                # Save the current best particle system for this bounding box
-                best_distances[bounding_box1] = [best_particle_system1, best_distance1]
+            # Discard all the distances higher than the threshold
+            if distance > params.DISTANCE:
                 break
+            
+            # Discard bounding boxes already assigned
+            if bounding_boxes_dict.get(bounding_box, None) != None:
+                continue
 
-    # Check if the distances exceed a threshold, indicating a possible incorrect association (e.g. new bounding box)
-    particle_systems = []
+            bounding_boxes_dict[bounding_box] = particle_system
+            break
 
-    for bounding_box in best_distances:
-        particle_system, distance = best_distances[bounding_box]
+    for bounding_box in bounding_boxes_dict:
 
-        # Reinitialize the particle system if the distance is too large
-        if distance > params.DISTANCE:
-            particle_system = ParticleFilter(width=width, height=height, number_of_particles=params.NUMBER_OF_PARTICLES, bounding_box=bounding_box)
-
-        particle_systems.append([particle_system, bounding_box])
-
+        if bounding_boxes_dict.get(bounding_box, None) is not None:
+            continue
+        
+        bounding_boxes_dict[bounding_box] = ParticleFilter(width=width, height=height, number_of_particles=params.NUMBER_OF_PARTICLES, bounding_box=bounding_box)
+    
     # Update the particle systems and perform steps for each
     function.particle_systems = []
     
     results = {}
 
-    for particle_system, bounding_box in particle_systems:
+    for bounding_box in bounding_boxes_dict:
         x, y, w, h = bounding_box
         centroid = np.array([x + w / 2, y + h / 2])
 
         # Update the particle system
+        particle_system = bounding_boxes_dict[bounding_box]
         estimate_position, particles = particle_system.step(centroid=centroid)
-        
-        # Save the particle system for future use
-        function.particle_systems.append(particle_system)
 
         # Correct the predictions
         origin = (int(centroid[0]), int(centroid[1]))
@@ -232,10 +234,19 @@ def particle_filtering(mat: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, bou
 
         estimated = (new_x, new_y)
 
+        # Keep track of previous positions
+        particle_system.add_point(point=origin)
+
+        # Save the particle system for future use
+        function.particle_systems.append(particle_system)
+
         # Save results
         results[bounding_box] = {
             "origin": origin,
-            "estimated": estimated
+            "estimated": estimated,
+            "particles": particles,
+            "points": particle_system.get_points(),
+            "color": particle_system.get_color()
         }
 
         # Draw bounding box

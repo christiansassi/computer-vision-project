@@ -18,7 +18,7 @@ VOLLEYBALL_NET = [(972, 1423), (996,0)] # Volleyball net
 NUMBER_OF_PARTICLES = 500
 MEASUREMENT_NOISE_STD = 50
 STDDEV = 15
-DISTANCE = 300
+DISTANCE = 350
 
 # Stitching variables
 TOP = {
@@ -88,6 +88,9 @@ FINAL = {
     "right_max": 770
 }
 
+# Tracking
+MAX_POINTS = 20
+
 # YOLO
 YOLO_PATH = join("models", "best.pt")
 YOLO_CONFIDENCE = 0.5
@@ -103,10 +106,10 @@ YOLO_CLASS_MAP = {
 }
 
 # TEAM IDENTIFICATION
-TEAM_1_COLOR = (0, 0, 255) #BGR
-TEAM_1_LABEL = "TEAM 1"
-TEAM_2_COLOR = (255, 0, 0) #BGR
-TEAM_2_LABEL = "TEAM 2"
+TEAM1_COLOR = (0, 0, 255) #BGR
+TEAM1_LABEL = "TEAM 1"
+TEAM2_COLOR = (255, 0, 0) #BGR
+TEAM2_LABEL = "TEAM 2"
 
 # Folders
 ROOT = "videos"
