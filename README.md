@@ -14,6 +14,7 @@
     - [Object Tracking](#object-tracking)
     - [Ball Detection and Tracking](#ball-detection-and-tracking)
     - [Color-based team identification](#color-based-team-identification)
+-   [Project structure](#project-structure)
 -   [Getting Started](#getting-started)
 -   [Contacts](#contacts)
 
@@ -155,6 +156,19 @@ However, it is important to note that this methodology has its pros and cons. Pr
   <br>
   <span><i>Two bounding boxes near the net merged into a single bounding box, resulting in the misclassification of one of the two teams</i></span>
 </p>
+
+# Project structure
+
+```text
+.
+├── assets          # Images
+├── models          # YOLO11 model
+├── src             # Source files
+└── videos
+    ├── cut         # Cut videos (private)
+    ├── original    # Original videos (private)
+    └── processed   # Processed videos (private)
+```
 
 # Getting Started
 
