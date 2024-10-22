@@ -19,14 +19,42 @@
 # Project Overview
 This project focuses on processing video camera images from the Sanbapolis facility in Trento. The objectives are:
 
-- **Top-View Court Stitching**: the facility has three distinct views—top, center, and bottom—each captured by four cameras. The goal is to first stitch the images from cameras within the same view. After reconstructing each view, the next step is to stitch the top, center, and bottom views together to create a seamless top-view of the entire court.
-- **Object Detection on Top-View Images**: we applied several detection algorithms to the stitched top-view images, testing various techniques from our coursework, including frame subtraction, background subtraction, adaptive background subtraction, and Gaussian averaging. After evaluation, we selected background subtraction as the most effective method for our purpose.
-- **Object Tracking**: for tracking detected objects (bounding boxes), we implemented particle filtering, one of the techniques studied during the course. Since it performed well, we opted not to explore additional methods further.
-- **Ball Detection and Tracking**: for ball detection and tracking, we used the YOLO (You Only Look Once) algorithm, which proved suitable for this task.
+- **Top-View Court Stitching**: The facility consists of three distinct views—top, center, and bottom—each captured by four cameras. The process begins by stitching the images from cameras within the same view. Once each view is reconstructed, the next step involves stitching the top, center, and bottom views together to create a seamless top-view of the entire court.
+- **Object Detection on Top-View Images**: Several detection algorithms were applied to the stitched top-view images, testing various techniques, including frame subtraction, background subtraction, adaptive background subtraction, and Gaussian averaging. After evaluation, background subtraction was identified as the most effective method for this task.
+- **Object Tracking**: Particle filtering was implemented for tracking detected objects (bounding boxes). Given its performance, no further methods were explored.
+- **Ball Detection and Tracking**: The YOLO (You Only Look Once) algorithm was used for ball detection and tracking, demonstrating suitability for this task.
 
 # Code Overview
 
 ## Top-View Court Stitching
+
+In the stitching phase, the process began by stitching images captured from the same views, where each view is associated with four cameras. This initial step is relatively straightforward.
+
+Subsequently, the stitched images from the three views were combined. Due to the complexity of this task, a filtering algorithm was developed to discard incorrect or low-quality matches between images from different views (top-center, bottom-center, and top-center with bottom-center). The algorithm evaluates the inclination of the line connecting two features, discarding pairs where the inclination is too high. To enhance robustness, some feature pairs were manually selected to ensure better quality matches. The final result is shown below:
+
+<p align="center" text-align="center"> 
+    <img width="75%" src="assets/stitching/stitching_1.png"> 
+    <br> 
+    <span><i>Stitched image</i></span> 
+</p>
+
+It is important to consider that due to the camera view angles, objects positioned higher in the frame are more likely to be "cut" at the stitching seams. 
+
+<p align="center" text-align="center"> 
+    <img width="75%" src="assets/stitching/stitching_2.png"> 
+    <br> 
+    <span><i>Stitching behavior</i></span> 
+</p>
+
+<p align="center" text-align="center"> 
+    <img width="75%" src="assets/stitching/stitching_3.png"> 
+    <br> 
+    <span><i>Example of a player being cut off</i></span> 
+</p>
+
+In the image, the green circle shows that the feet align correctly across the stitching sections. However, the red circle highlights a misalignment in the upper body of the player, which occurs due to the view angle effect mentioned earlier.
+
+Finally, to improve performance, stitching parameters were cached to avoid recalculating them for each operation.
 
 ## Object Detection on Top-View Images
 Several detection algorithms were applied to the stitched top-view images, testing various techniques from coursework, including frame subtraction, background subtraction, adaptive background subtraction, and Gaussian averaging. After evaluation, background subtraction was selected as the most effective method.
@@ -98,6 +126,8 @@ The first step involved creating a dataset specifically for this task. Approxima
   <br>
   <span><i>Ball detection and tracking</i></span>
 </p>
+
+As with player tracking, if the ball makes a sudden, rapid movement, the particle system may require a few iterations to adjust. This can result in inaccurate predictions during those iterations, as shown in the video above.
 
 # Getting Started
 
