@@ -780,6 +780,11 @@ def process_videos(videos: list[str], live: bool = True) -> None:
         other_time = time()
 
         # Draw
+        team1_players = []
+        team2_players = []
+        team_players = []
+        ball_points = []
+
         if TEAM_IDENTIFICATION:
             for x, y, w, h in team1:
                 cv2.putText(processed_frame, params.TEAM1_LABEL, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, params.TEAM1_COLOR, 2)
@@ -792,83 +797,45 @@ def process_videos(videos: list[str], live: bool = True) -> None:
             for obj in list(motion_tracking_team1.values()):
                 origin = obj["origin"]
                 estimated = obj["estimated"]
+                team1_players.append(obj["points"])
 
                 cv2.arrowedLine(processed_frame, origin, estimated, params.TEAM1_COLOR, 4, tipLength=0.25)
 
-                # Draw tracking points
-                # for index, point in enumerate(obj["points"]):
-                    
-                #     if index == 0:
-                #         continue
-
-                #     prev_point = obj["points"][index-1]
-
-                #     cv2.line(processed_frame, prev_point, point, params.TEAM1_COLOR, 2)
-                #     cv2.circle(processed_frame, point, 5, params.TEAM1_COLOR, -1)
-            
             for obj in list(motion_tracking_team2.values()):
                 origin = obj["origin"]
                 estimated = obj["estimated"]
+                team2_players.append(obj["points"])
 
                 cv2.arrowedLine(processed_frame, origin, estimated,params.TEAM2_COLOR, 4, tipLength=0.25)
 
-                # Draw tracking points
-                # for index, point in enumerate(obj["points"]):
-                    
-                #     if index == 0:
-                #         continue
-
-                #     prev_point = obj["points"][index-1]
-
-                #     cv2.line(processed_frame, prev_point, point, params.TEAM2_COLOR, 2)
-                #     cv2.circle(processed_frame, point, 5, params.TEAM2_COLOR, -1)
-
         elif MOTION_DETECTION:
             for x, y, w, h in motion_detection_bounding_boxes:
-                cv2.rectangle(processed_frame, (x, y), (x + w, y + h), (255, 0, 255), 2)
+                cv2.rectangle(processed_frame, (x, y), (x + w, y + h), params.TEAM_DEFAULT_COLOR, 2)
 
             for obj in list(motion_tracking_results.values()):
                 origin = obj["origin"]
                 estimated = obj["estimated"]
+                team_players.append(obj["points"])
 
-                cv2.arrowedLine(processed_frame, origin, estimated, (255, 0, 255), 4, tipLength=0.25)
-
-                # Draw tracking points
-                # for index, point in enumerate(obj["points"]):
-                    
-                #     if index == 0:
-                #         continue
-
-                #     prev_point = obj["points"][index-1]
-
-                #     cv2.line(processed_frame, prev_point, point, (255, 0, 255), 2)
-                #     cv2.circle(processed_frame, point, 5, (255, 0, 255), -1)
+                cv2.arrowedLine(processed_frame, origin, estimated, params.TEAM_DEFAULT_COLOR, 4, tipLength=0.25)
 
         if ball is not None:
 
             x, y, w, h = ball["bounding_box"]
             text = ball["text"]
 
-            cv2.rectangle(processed_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            cv2.putText(processed_frame, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            cv2.rectangle(processed_frame, (x, y), (x + w, y + h), params.BALL_COLOR, 2)
+            cv2.putText(processed_frame, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, params.BALL_COLOR, 2)
 
-        for obj in list(ball_tracking_results.values()):
-            origin = obj["origin"]
-            estimated = obj["estimated"]
+            for obj in list(ball_tracking_results.values()):
+                origin = obj["origin"]
+                estimated = obj["estimated"]
+                ball_points = obj["points"]
 
-            cv2.arrowedLine(processed_frame, origin, estimated, (0, 255, 0), 4, tipLength=0.25)
+                cv2.arrowedLine(processed_frame, origin, estimated, params.BALL_COLOR, 4, tipLength=0.25)
 
-            # Draw tracking points
-            # for index, point in enumerate(obj["points"]):
-                    
-            #     if index == 0:
-            #         continue
-
-            #     prev_point = obj["points"][index-1]
-
-            #     cv2.line(processed_frame, prev_point, point, (0, 255, 0), 2)
-            #     cv2.circle(processed_frame, point, 5, (0, 255, 0), -1)
-
+        draw_tracking_points.draw_points(team1_players=team1_players, team2_players=team2_players, team_players=team_players, ball_points=ball_points)
+        
         # Show processed video
         if live:
 
@@ -970,4 +937,4 @@ if __name__ == "__main__":
     videos = __cut_video(videos=videos)
 
     #? Process videos
-    process_videos(videos=videos)
+    process_videos(videos=videos, live=False)

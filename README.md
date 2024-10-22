@@ -199,6 +199,12 @@ However, it is important to note that this methodology has its pros and cons. Pr
   <span><i>Demo</i></span>
 </p>
 
+<p align="center" text-align="center">
+  <img width="75%" src="assets/demo/plot_tracking_demo.gif">
+  <br>
+  <span><i>Tracking plot</i></span>
+</p>
+
 # Contacts
 
 Pietro Bologna - [pietro.bologna@studenti.unitn.it](mailto:pietro.bologna@studenti.unitn.it)
