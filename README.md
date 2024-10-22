@@ -3,6 +3,8 @@
 <div>
     <img src="https://img.shields.io/badge/python-3670A0?style=flat&logo=python&logoColor=ffdd54" alt="Python"/>
     <img src="https://tinyurl.com/cvyolo11" alt="Yolo 11"/>
+    <img src="https://img.shields.io/badge/Numpy-013243?style=flat&logo=numpy&logoColor=white" alt="NumPy"/>
+    <img src="https://img.shields.io/badge/OpenCV-5C3EE8?style=flat&logo=opencv&logoColor=white" alt="OpenCV"/>
 </div>
 
 # Table of contents
@@ -80,6 +82,8 @@ By combining these two techniques, the following result was achieved:
     <br> 
     <span><i>Motion detection</i></span> 
 </p>
+
+However, it is important to note that this methodology can sometimes merge nearby bounding boxes into a single box, especially when players interact or are in close proximity to each other.
 
 ## Object Tracking
 
