@@ -13,6 +13,7 @@
     - [Object Detection on Top-View Images](#object-detection-on-top-view-images)
     - [Object Tracking](#object-tracking)
     - [Ball Detection and Tracking](#ball-detection-and-tracking)
+    - [Color-based team identification](#color-based-team-identification)
 -   [Getting Started](#getting-started)
 -   [Contacts](#contacts)
 
@@ -23,6 +24,7 @@ This project focuses on processing video camera images from the Sanbapolis facil
 - **Object Detection on Top-View Images**: Several detection algorithms were applied to the stitched top-view images, testing various techniques, including frame subtraction, background subtraction, adaptive background subtraction, and Gaussian averaging. After evaluation, background subtraction was identified as the most effective method for this task.
 - **Object Tracking**: Particle filtering was implemented for tracking detected objects (bounding boxes). Given its performance, no further methods were explored.
 - **Ball Detection and Tracking**: The YOLO (You Only Look Once) algorithm was used for ball detection and tracking, demonstrating suitability for this task.
+- **Color-based team identification**: As this project is designed for processing volleyball videos, the optimal approach is to use the net to separate the two teams.
 
 # Code Overview
 
@@ -110,6 +112,9 @@ Finally, the particle systems were used to predict the possible direction of a m
     <span><i>Motion tracking</i></span> 
 </p>
 
+> [!NOTE]
+> It is important to highlight that, generally speaking, a particle system may not be the best option for these scenarios due to its difficulty in adapting to rapid changes. However, it is effective in this case, but it should be noted that other methods may be more suitable for our specific requirements.
+
 ## Ball Detection and Tracking
 
 For ball detection and tracking, the YOLO (You Only Look Once) algorithm was employed, as it proved well-suited for this task. Due to the ball’s high velocity, it often appeared distorted in some frames, making it difficult to detect using traditional techniques.
@@ -123,6 +128,33 @@ The first step involved creating a dataset specifically for this task. Approxima
 </p>
 
 As with player tracking, if the ball makes a sudden, rapid movement, the particle system may require a few iterations to adjust. This can result in inaccurate predictions during those iterations, as shown in the video above.
+
+> [!NOTE]
+> Even for this application, tracking based on a particle system can be challenging. However, in this case, unlike with players, the difficulties encountered by the tracking system may be less pronounced because the ball has a more predictable movement.
+
+## Color-based team identification
+
+For this purpose, the optimal approach was to use the net to separate the two teams, as this project is designed to process volleyball videos rather than videos of other sports where players from different teams may intermingle.
+
+This decision was further justified by the fact that in the provided videos, players from both teams wear uniforms of similar colors, making color-based team identification challenging.
+
+<p align="center" text-align="center">
+  <img width="49%" src="assets/team_identification/team_identification_1.png">
+  <img width="49%" src="assets/team_identification/team_identification_2.png">
+  <br>
+  <span><i>Color-based team identification applied to distinct colors</i></span>
+</p>
+
+The first image illustrates the high similarity between the Gaussian distributions of the colors worn by players from the two different teams. In contrast, the second graph demonstrates how color-based team identification could be effective if the colors were sufficiently distinct. This plot references the blue color of one team and the yellow color of a player to show that while this method can be applicable, it is not suitable in the current scenario.
+
+However, it is important to note that this methodology has its pros and cons. Pros include its speed, ease of separating players, and consistent performance. Cons arise from the detection method used (which does not employ YOLO). When players from different teams are positioned near the net, they may be merged into a single bounding box, leading to the misclassification of one of the teams. If YOLO were used, this issue could likely be mitigated.
+
+<p align="center" text-align="center">
+  <img width="49%" src="assets/team_identification/team_identification_3.png">
+  <img width="49%" src="assets/team_identification/team_identification_4.png">
+  <br>
+  <span><i>Two bounding boxes near the net merged into a single bounding box, resulting in the misclassification of one of the two teams</i></span>
+</p>
 
 # Getting Started
 

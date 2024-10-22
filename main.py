@@ -959,8 +959,6 @@ def process_videos(videos: list[str], live: bool = True) -> None:
 
 if __name__ == "__main__":
 
-    #TODO: calculating stitching parameters -> timer
-
     # Handle system signals
     signal.signal(signal.SIGINT, cleanup)
     signal.signal(signal.SIGTERM, cleanup)
