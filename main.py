@@ -796,15 +796,15 @@ def process_videos(videos: list[str], live: bool = True) -> None:
                 cv2.arrowedLine(processed_frame, origin, estimated, params.TEAM1_COLOR, 4, tipLength=0.25)
 
                 # Draw tracking points
-                for index, point in enumerate(obj["points"]):
+                # for index, point in enumerate(obj["points"]):
                     
-                    if index == 0:
-                        continue
+                #     if index == 0:
+                #         continue
 
-                    prev_point = obj["points"][index-1]
+                #     prev_point = obj["points"][index-1]
 
-                    cv2.line(processed_frame, prev_point, point, params.TEAM1_COLOR, 2)
-                    cv2.circle(processed_frame, point, 5, params.TEAM1_COLOR, -1)
+                #     cv2.line(processed_frame, prev_point, point, params.TEAM1_COLOR, 2)
+                #     cv2.circle(processed_frame, point, 5, params.TEAM1_COLOR, -1)
             
             for obj in list(motion_tracking_team2.values()):
                 origin = obj["origin"]
@@ -813,15 +813,15 @@ def process_videos(videos: list[str], live: bool = True) -> None:
                 cv2.arrowedLine(processed_frame, origin, estimated,params.TEAM2_COLOR, 4, tipLength=0.25)
 
                 # Draw tracking points
-                for index, point in enumerate(obj["points"]):
+                # for index, point in enumerate(obj["points"]):
                     
-                    if index == 0:
-                        continue
+                #     if index == 0:
+                #         continue
 
-                    prev_point = obj["points"][index-1]
+                #     prev_point = obj["points"][index-1]
 
-                    cv2.line(processed_frame, prev_point, point, params.TEAM2_COLOR, 2)
-                    cv2.circle(processed_frame, point, 5, params.TEAM2_COLOR, -1)
+                #     cv2.line(processed_frame, prev_point, point, params.TEAM2_COLOR, 2)
+                #     cv2.circle(processed_frame, point, 5, params.TEAM2_COLOR, -1)
 
         elif MOTION_DETECTION:
             for x, y, w, h in motion_detection_bounding_boxes:
@@ -834,15 +834,15 @@ def process_videos(videos: list[str], live: bool = True) -> None:
                 cv2.arrowedLine(processed_frame, origin, estimated, (255, 0, 255), 4, tipLength=0.25)
 
                 # Draw tracking points
-                for index, point in enumerate(obj["points"]):
+                # for index, point in enumerate(obj["points"]):
                     
-                    if index == 0:
-                        continue
+                #     if index == 0:
+                #         continue
 
-                    prev_point = obj["points"][index-1]
+                #     prev_point = obj["points"][index-1]
 
-                    cv2.line(processed_frame, prev_point, point, (255, 0, 255), 2)
-                    cv2.circle(processed_frame, point, 5, (255, 0, 255), -1)
+                #     cv2.line(processed_frame, prev_point, point, (255, 0, 255), 2)
+                #     cv2.circle(processed_frame, point, 5, (255, 0, 255), -1)
 
         if ball is not None:
 
@@ -859,15 +859,15 @@ def process_videos(videos: list[str], live: bool = True) -> None:
             cv2.arrowedLine(processed_frame, origin, estimated, (0, 255, 0), 4, tipLength=0.25)
 
             # Draw tracking points
-            for index, point in enumerate(obj["points"]):
+            # for index, point in enumerate(obj["points"]):
                     
-                if index == 0:
-                    continue
+            #     if index == 0:
+            #         continue
 
-                prev_point = obj["points"][index-1]
+            #     prev_point = obj["points"][index-1]
 
-                cv2.line(processed_frame, prev_point, point, (0, 255, 0), 2)
-                cv2.circle(processed_frame, point, 5, (0, 255, 0), -1)
+            #     cv2.line(processed_frame, prev_point, point, (0, 255, 0), 2)
+            #     cv2.circle(processed_frame, point, 5, (0, 255, 0), -1)
 
         # Show processed video
         if live:
