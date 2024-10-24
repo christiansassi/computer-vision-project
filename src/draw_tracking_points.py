@@ -125,5 +125,3 @@ def draw_points(team1_players: list, team2_players: list, team_players: list, ba
     # Show plot
     fig.canvas.draw()
 
-    fig.savefig(f'plot/{int(datetime.now().timestamp())}.png', bbox_inches='tight')
-

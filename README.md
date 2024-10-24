@@ -46,8 +46,8 @@ Subsequently, the stitched images from the three views were combined. Due to the
 It is important to consider that due to the camera view angles, objects positioned higher in the frame are more likely to be "cut" at the stitching seams. 
 
 <p align="center" text-align="center"> 
-    <img width="67%" src="assets/stitching/stitching_2.png"> 
-    <img width="32%" src="assets/stitching/stitching_3.png"> 
+    <img width="65%" src="assets/stitching/stitching_2.png"> 
+    <img width="33%" src="assets/stitching/stitching_3.png"> 
     <br> 
     <span><i>Example of a player being cut off due due to stitching artifacts</i></span> 
 </p>
