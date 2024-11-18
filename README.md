@@ -49,7 +49,7 @@ It is important to consider that due to the camera view angles, objects position
     <img width="65%" src="assets/stitching/stitching_2.png"> 
     <img width="33%" src="assets/stitching/stitching_3.png"> 
     <br> 
-    <span><i>Example of a player being cut off due due to stitching artifacts</i></span> 
+    <span><i>Example of a player being cut off due to stitching artifacts</i></span> 
 </p>
 
 In the image, the green circle shows that the feet align correctly across the stitching sections. However, the red circle highlights a misalignment in the upper body of the player, which occurs due to the view angle effect mentioned earlier.
