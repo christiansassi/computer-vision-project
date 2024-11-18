@@ -460,14 +460,6 @@ def __motion_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, d
         #! [-] Stops detecting an object if it stops moving
         #! [-] A larger window can avoid the previous problem but would negatively impact detection quality
 
-        # Apply background subtraction
-        #* PROS
-        #* [+] Good since the background doesn't change too much (for this purpose)
-        #* [+] Keeps detecting objects even if they stop moving
-
-        #! CONS
-        #! [-] None (for this purpose)
-
         assert isinstance(time_window, int), "Invalid time window"
         assert time_window > 0, "Invalid time window"
 
