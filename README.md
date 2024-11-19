@@ -67,7 +67,7 @@ The first step involves applying a threshold to the image to extract the most re
     <span><i>Thresholded and dilated image</i></span> 
 </p>
 
-Next, contours are filtered based on the volleyball court area. The court's boundaries are defined, and objects that intercept this area by 25% or more are retained. This approach helps discard irrelevant objects, such as people outside the court (e.g., coaches) who may briefly step into the frame:
+Next, contours are filtered based on the volleyball court area. The court's boundaries are defined, and objects that intercept this area by 25% or more are kept. This approach helps discard irrelevant objects, such as people outside the court (e.g., coaches) who may briefly step into the frame:
 
 <p align="center" text-align="center"> 
     <img width="75%" src="assets/motion_detection/motion_detection_2.png"> 
