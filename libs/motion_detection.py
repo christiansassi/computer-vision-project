@@ -3,7 +3,7 @@ import inspect
 import numpy as np
 from shapely.geometry import Polygon, LineString, Point
 
-from src import params
+from libs import params
 
 FRAME_SUBTRACTION: int = 1
 BACKGROUND_SUBTRACTION: int = 2

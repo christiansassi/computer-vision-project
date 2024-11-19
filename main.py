@@ -9,27 +9,31 @@ from time import time
 import statistics
 import cv2
 import numpy as np
+from os import chdir
+from os.path import dirname
+
+chdir(dirname(__file__))
 
 # Clear screen
 clear_screen = lambda: system("cls") if os.name == "nt" else system("clear")
 clear_screen()
 
 # Setup logger
-from src import wrapped_logging_handler
+from libs import wrapped_logging_handler
 logger = wrapped_logging_handler.get_logger()
 
 # Custom modules
 logger.info(f"Importing modules...")
-from src import blending
-from src import cut_video
-from src import motion_detection
-from src import motion_tracking
-from src import team_identification
-from src import params
-from src import stitch_image
-from src import utils
-from src import ball_tracking
-from src import draw_tracking_points
+from libs import blending
+from libs import cut_video
+from libs import motion_detection
+from libs import motion_tracking
+from libs import team_identification
+from libs import params
+from libs import stitch_image
+from libs import utils
+from libs import ball_tracking
+from libs import draw_tracking_points
 print("DONE")
 
 # Select

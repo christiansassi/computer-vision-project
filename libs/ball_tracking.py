@@ -4,7 +4,7 @@ import inspect
 import math
 import distinctipy
 
-from src import params
+from libs import params
 
 class ParticleFilter:
 

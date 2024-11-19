@@ -6,7 +6,7 @@ import distinctipy
 
 from uuid import uuid4
 
-from src import params
+from libs import params
 
 class ParticleFilter:
 

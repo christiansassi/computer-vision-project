@@ -1,4 +1,4 @@
-from src import params
+from libs import params
 
 def identify_teams(bounding_boxes: list) -> tuple[list, list]:
 

@@ -7,7 +7,7 @@ from datetime import datetime
 
 import inspect
 
-from src import params
+from libs import params
 
 def draw_points(team1_players: list, team2_players: list, team_players: list, ball_points: list):
 
