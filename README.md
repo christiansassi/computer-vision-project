@@ -119,7 +119,7 @@ For ball detection and tracking, YOLO (You Only Look Once) was used. Given the h
 YOLO v11 was then applied to the dataset, enabling accurate detection. The same particle system technique used for player tracking was applied to track the ball's movement:
 
 <p align="center" text-align="center">
-  <img width="75%" src="assets/ball_detection_and_tracking/ball.gif">
+  <img width="100%" src="assets/ball_detection_and_tracking/ball.gif">
   <br>
   <span><i>Ball detection and tracking</i></span>
 </p>
@@ -136,8 +136,7 @@ Given that this project processes volleyball videos, the optimal method for team
 However, color-based team identification faced challenges due to the similarity in uniform colors between the two teams.
 
 <p align="center" text-align="center">
-  <img width="49%" src="assets/team_identification/team_identification_1.png">
-  <img width="49%" src="assets/team_identification/team_identification_2.png">
+  <img width="100%" src="assets/histograms/histograms.png">
   <br>
   <span><i>Color-based team identification applied to distinct colors</i></span>
 </p>
