@@ -167,7 +167,7 @@ However, it is important to note that this methodology has its pros and cons. Pr
 .
 ├── assets          # Images
 ├── models          # YOLO11 model
-├── src             # Source files
+├── libs            # Source files
 └── videos
     ├── cut         # Cut videos (private)
     ├── original    # Original videos (private)
