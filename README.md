@@ -21,21 +21,22 @@
 -   [Contacts](#contacts)
 
 # Project Overview
-This project focuses on processing video camera images from the Sanbapolis facility in Trento. The objectives are:
 
-- **Top-View Court Stitching**: The facility consists of three distinct views—top, center, and bottom—each captured by four cameras. The process begins by stitching the images from cameras within the same view. Once each view is reconstructed, the next step involves stitching the top, center, and bottom views together to create a seamless top-view of the entire court.
-- **Object Detection on Top-View Images**: Several detection algorithms were applied to the stitched top-view images, testing various techniques, including frame subtraction, background subtraction, adaptive background subtraction, and Gaussian averaging. After evaluation, background subtraction was identified as the most effective method for this task.
+This project focuses on processing video footage captured at the Sanbapolis facility in Trento. The main objectives are:
+
+- **Top-View Court Stitching**: The facility has three distinct camera views—top, center, and bottom—each captured by four cameras. Initially, the images from cameras within the same view are stitched together. Then, these stitched views (top, center, and bottom) are merged to create a cohesive top-down view of the entire volleyball court.
+- **Object Detection on Top-View Images**: Various object detection algorithms were applied to the stitched top-view images, including frame subtraction, background subtraction, adaptive background subtraction, and Gaussian averaging. After evaluating these methods, background subtraction was selected as the most effective for detecting objects on the court.
 - **Object Tracking**: Particle filtering was implemented for tracking detected objects (bounding boxes). Given its performance, no further methods were explored.
-- **Ball Detection and Tracking**: The YOLO (You Only Look Once) algorithm was used for ball detection and tracking, demonstrating suitability for this task.
-- **Color-based team identification**: As this project is designed for processing volleyball videos, the optimal approach is to use the net to separate the two teams.
+- **Ball Detection and Tracking**: YOLO (You Only Look Once) was used for ball detection and tracking. YOLO's efficiency proved to be particularly effective due to the ball's high velocity and potential distortion in certain frames.
+- **Color-based Team Identification**: This project processes volleyball videos, and the net was used to separate the two teams. The color-based identification method faces challenges, as players from both teams wear uniforms of similar colors, complicating the identification process.
 
 # Code Overview
 
 ## Top-View Court Stitching
 
-In the stitching phase, the process began by stitching images captured from the same views, where each view is associated with four cameras. This initial step is relatively straightforward.
+In the stitching phase, the images from each view (top, center, bottom) are stitched together. This process involves initially stitching the images from cameras within the same view, followed by combining the views to create a seamless top-down representation of the entire court. Due to the complexity of this task, a filtering algorithm was developed to discard low-quality matches based on the inclination of the line connecting two features.
 
-Subsequently, the stitched images from the three views were combined. Due to the complexity of this task, a filtering algorithm was developed to discard incorrect or low-quality matches between images from different views (top-center, bottom-center, and top-center with bottom-center). The algorithm evaluates the inclination of the line connecting two features, discarding pairs where the inclination is too high. To enhance robustness, some feature pairs were manually selected to ensure better quality matches. The final result is shown below:
+The final result of the stitching process is shown below:
 
 <p align="center" text-align="center"> 
     <img width="75%" src="assets/stitching/stitching_1.png"> 
@@ -43,7 +44,7 @@ Subsequently, the stitched images from the three views were combined. Due to the
     <span><i>Stitched image</i></span> 
 </p>
 
-It is important to consider that due to the camera view angles, objects positioned higher in the frame are more likely to be "cut" at the stitching seams. 
+One key consideration is that objects positioned higher in the frame are more likely to be cut off at the stitching seams due to the camera angles. For example:
 
 <p align="center" text-align="center"> 
     <img width="33%" src="assets/stitching/stitching_3.png"> 
@@ -52,14 +53,13 @@ It is important to consider that due to the camera view angles, objects position
     <span><i>Example of a player being cut off due to stitching artifacts</i></span> 
 </p>
 
-In the image, the green circle shows that the feet align correctly across the stitching sections. However, the red circle highlights a misalignment in the upper body of the player, which occurs due to the view angle effect mentioned earlier.
-
-Finally, to improve performance, stitching parameters were cached to avoid recalculating them for each operation.
+To improve performance, stitching parameters were cached to avoid recalculating them for each iteration.
 
 ## Object Detection on Top-View Images
-Several detection algorithms were applied to the stitched top-view images, testing various techniques from coursework, including frame subtraction, background subtraction, adaptive background subtraction, and Gaussian averaging. After evaluation, background subtraction was selected as the most effective method.
 
-The first step involves applying a threshold to the image to extract the most relevant areas. During this phase, dilation is applied to account for stitching errors that sometimes cause players to be incorrectly displayed as separate objects. The dilation helps merge these separated segments into a single object. Additionally, small areas are discarded:
+Various object detection algorithms were tested on the stitched top-view images. The methods considered include frame subtraction, background subtraction, adaptive background subtraction, and Gaussian averaging. Background subtraction was found to be the most effective.
+
+The detection process begins with thresholding the image to highlight the most relevant areas, followed by dilation to account for any stitching errors. Small areas are discarded to focus on significant objects:
 
 <p align="center" text-align="center"> 
     <img width="75%" src="assets/motion_detection/motion_detection_1.png"> 
@@ -67,7 +67,7 @@ The first step involves applying a threshold to the image to extract the most re
     <span><i>Thresholded and dilated image</i></span> 
 </p>
 
-Next, contours are filtered based on the volleyball court area. The court's boundaries are defined, and objects that intercept this area by 25% or more are kept. This approach helps discard irrelevant objects, such as people outside the court (e.g., coaches) who may briefly step into the frame:
+Next, contours are filtered based on the volleyball court's boundaries, with objects that intersect the court area by 25% or more being retained:
 
 <p align="center" text-align="center"> 
     <img width="75%" src="assets/motion_detection/motion_detection_2.png"> 
@@ -75,7 +75,7 @@ Next, contours are filtered based on the volleyball court area. The court's boun
     <span><i>Volleyball field mask</i></span> 
 </p>
 
-By combining these two techniques, the following result was achieved:
+Combining these methods results in the following motion detection output:
 
 <p align="center" text-align="center"> 
     <img width="75%" src="assets/motion_detection/motion_detection_3.png"> 
@@ -83,13 +83,9 @@ By combining these two techniques, the following result was achieved:
     <span><i>Motion detection</i></span> 
 </p>
 
-However, it is important to note that this methodology can sometimes merge nearby bounding boxes into a single box, especially when players interact or are in close proximity to each other.
-
 ## Object Tracking
 
-For tracking detected objects (bounding boxes), particle filtering was implemented, a technique studied during the course. As this method performed well, further exploration of additional techniques was deemed unnecessary.
-
-For each detected bounding box, a new particle system was initialized. Initially, the particles in each system exhibited chaotic behavior due to the randomness at the start:
+Particle filtering was chosen for object tracking, which initializes a new particle system for each detected bounding box. Over several iterations, the particle system refines its position. Initially, the particles exhibit chaotic behavior:
 
 <p align="center" text-align="center"> 
     <img width="75%" src="assets/motion_tracking/motion_tracking_1.png"> 
@@ -97,11 +93,7 @@ For each detected bounding box, a new particle system was initialized. Initially
     <span><i>Initial particle system</i></span> 
 </p>
 
-At each iteration, the particle systems were compared with the updated bounding boxes to determine if a particle system still had an associated bounding box (i.e., the object is still detected) or if a new system was required (i.e., the object is no longer detected, or a new object has appeared).
-
-To associate a particle system with its corresponding bounding box, the distance between the centroid of the particle system and the bounding box was evaluated. A particle system was associated with a bounding box if it had the smallest distance to that bounding box. Otherwise, if no suitable particle system was found, a new one was created.
-
-Through repeated iterations, the randomness within each particle system diminished:
+As iterations proceed, the particle system becomes more accurate:
 
 <p align="center" text-align="center"> 
     <img width="75%" src="assets/motion_tracking/motion_tracking_2.png"> 
@@ -109,7 +101,7 @@ Through repeated iterations, the randomness within each particle system diminish
     <span><i>Particle system after some iterations</i></span> 
 </p>
 
-Finally, the particle systems were used to predict the possible direction of a moving object. It is important to note that for small movements, the direction arrow may appear slow and less certain. Additionally, if an object makes a sudden, fast movement, the particle system may require a few iterations to adapt, potentially resulting in incorrect predictions during those iterations.
+Finally, the particle system is used to predict the direction of the moving object. While the particle system performs well overall, it struggles with sudden, fast movements, requiring several iterations to adjust:
 
 <p align="center" text-align="center"> 
     <img width="75%" src="assets/motion_tracking/motion_tracking_3.png"> 
@@ -118,13 +110,13 @@ Finally, the particle systems were used to predict the possible direction of a m
 </p>
 
 > [!NOTE]
-> It is important to highlight that, generally speaking, a particle system may not be the best option for these scenarios due to its difficulty in adapting to rapid changes. However, it is effective in this case, but it should be noted that other methods may be more suitable for our specific requirements.
+> While particle systems may not be the best option for all tracking scenarios, they performed well for this project. Other methods might be more appropriate for rapid changes in object movement.
 
 ## Ball Detection and Tracking
 
-For ball detection and tracking, the YOLO (You Only Look Once) algorithm was employed, as it proved well-suited for this task. Due to the ball’s high velocity, it often appeared distorted in some frames, making it difficult to detect using traditional techniques.
+For ball detection and tracking, YOLO (You Only Look Once) was used. Given the high velocity of the ball, traditional methods often resulted in distortion, making it difficult to detect. To overcome this, a custom dataset was created by manually extracting 1,000 images from the video, each with a labeled bounding box around the ball.
 
-The first step involved creating a dataset specifically for this task. Approximately 1,000 images were manually extracted from the videos, focusing on selecting the ball. YOLO v11 was then applied to this dataset, enabling accurate ball detection. Finally, the same technique used for tracking the players was applied here, producing the following result:
+YOLO v11 was then applied to the dataset, enabling accurate detection. The same particle system technique used for player tracking was applied to track the ball's movement:
 
 <p align="center" text-align="center">
   <img width="75%" src="assets/ball_detection_and_tracking/ball.gif">
@@ -132,16 +124,16 @@ The first step involved creating a dataset specifically for this task. Approxima
   <span><i>Ball detection and tracking</i></span>
 </p>
 
-As with player tracking, if the ball makes a sudden, rapid movement, the particle system may require a few iterations to adjust. This can result in inaccurate predictions during those iterations, as shown in the video above.
+As with player tracking, the particle system may require a few iterations to adapt to rapid movements, potentially leading to inaccurate predictions during those iterations.
 
 > [!NOTE]
-> Even for this application, tracking based on a particle system can be challenging. However, in this case, unlike with players, the difficulties encountered by the tracking system may be less pronounced because the ball has a more predictable movement.
+> Although particle systems can face challenges in tracking fast-moving objects, the ball's movement is more predictable, making the technique more effective in this case.
 
-## Color-based team identification
+## Color-based Team Identification
 
-For this purpose, the optimal approach was to use the net to separate the two teams, as this project is designed to process volleyball videos rather than videos of other sports where players from different teams may intermingle.
+Given that this project processes volleyball videos, the optimal method for team identification was to use the net to separate the two teams. This approach is particularly effective since players from different teams in volleyball are generally positioned on opposite sides of the net.
 
-This decision was further justified by the fact that in the provided videos, players from both teams wear uniforms of similar colors, making color-based team identification challenging.
+However, color-based team identification faced challenges due to the similarity in uniform colors between the two teams.
 
 <p align="center" text-align="center">
   <img width="49%" src="assets/team_identification/team_identification_1.png">
@@ -150,16 +142,17 @@ This decision was further justified by the fact that in the provided videos, pla
   <span><i>Color-based team identification applied to distinct colors</i></span>
 </p>
 
-The first image illustrates the high similarity between the Gaussian distributions of the colors worn by players from the two different teams. In contrast, the second graph demonstrates how color-based team identification could be effective if the colors were sufficiently distinct. This plot references the blue color of one team and the yellow color of a player to show that while this method can be applicable, it is not suitable in the current scenario.
+As shown in the histograms, the uniform colors of the two teams were highly similar, making it difficult to distinguish between them based solely on color. However, if the uniforms differed more significantly, color-based identification would be much more effective.
 
-However, it is important to note that this methodology has its pros and cons. Pros include its speed, ease of separating players, and consistent performance. Cons arise from the detection method used (which does not employ YOLO). When players from different teams are positioned near the net, they may be merged into a single bounding box, leading to the misclassification of one of the teams. If YOLO were used, this issue could likely be mitigated.
+While this method is fast and efficient, it has some limitations. For instance, when players from both teams are near the net, they may be merged into a single bounding box, leading to misclassification of one team. Using YOLO for more precise detection could mitigate this issue.
 
 <p align="center" text-align="center">
   <img width="49%" src="assets/team_identification/team_identification_3.png">
   <img width="49%" src="assets/team_identification/team_identification_4.png">
   <br>
-  <span><i>Two bounding boxes near the net merged into a single bounding box, resulting in the misclassification of one of the two teams</i></span>
+  <span><i>Two bounding boxes near the net merged into a single bounding box, resulting in misclassification</i></span>
 </p>
+
 
 # Project structure
 
