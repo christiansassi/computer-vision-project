@@ -1,15 +1,19 @@
+# Parse the arguments
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-live', action='store_true', help="Run in live mode")
+
+script_args = parser.parse_args()
+
+try:
+    if script_args.h or script_args.help:
+        exit(0)
+except:
+    pass
+
 import os
-from os import listdir, mkdir, system, remove
-from os.path import join, exists, basename, isfile
-import signal
-import sys
-import inspect
-from ultralytics import YOLO
-from time import time
-import statistics
-import cv2
-import numpy as np
-from os import chdir
+from os import chdir, system
 from os.path import dirname
 
 chdir(dirname(__file__))
@@ -22,8 +26,23 @@ clear_screen()
 from libs import wrapped_logging_handler
 logger = wrapped_logging_handler.get_logger()
 
-# Custom modules
 logger.info(f"Importing modules...")
+# Standard modules
+import inspect
+import signal
+import statistics
+import sys
+from os import listdir, mkdir, remove
+from os.path import basename, exists, isfile, join
+from time import time
+
+# Third-Party modules
+import cv2
+import numpy as np
+import screeninfo
+from ultralytics import YOLO
+
+# Custom modules
 from libs import blending
 from libs import cut_video
 from libs import motion_detection
@@ -44,10 +63,11 @@ BALL_DETECTION = True
 BALL_TRACKING = True
 
 OUTPUT_VIDEO = None
+OUTPUT_PLOT_VIDEO = None
 
 def cleanup(signum, frame):
 
-    global OUTPUT_VIDEO
+    global OUTPUT_VIDEO, OUTPUT_PLOT_VIDEO
 
     if OUTPUT_VIDEO is not None:
         
@@ -60,6 +80,19 @@ def cleanup(signum, frame):
         logger.info(f"Saving video...\n")
         OUTPUT_VIDEO.release()
         logger.info(f"Video saved to '{params.PROCESSED_VIDEO}'\n")
+    
+    if OUTPUT_PLOT_VIDEO is not None:
+
+        if OUTPUT_VIDEO is None:
+            sys.stdout.write("")
+            sys.stdout.write(f"\033[B" * params.NUM_LINES)
+            sys.stdout.flush()
+
+            print("\n")
+
+        logger.info(f"Saving video...\n")
+        OUTPUT_PLOT_VIDEO.release()
+        logger.info(f"Video saved to '{params.PROCESSED_PLOT_VIDEO}'\n")
 
     sys.exit(0)
 
@@ -635,7 +668,7 @@ def __ball_detection(frame: cv2.typing.MatLike | cv2.cuda.GpuMat | cv2.UMat, mod
 
 def process_videos(videos: list[str], live: bool = True) -> None:
     
-    global OUTPUT_VIDEO
+    global OUTPUT_VIDEO, OUTPUT_PLOT_VIDEO
     
     # Load the model for ball and player detection
     model = YOLO(params.YOLO_PATH, verbose=False)
@@ -688,6 +721,9 @@ def process_videos(videos: list[str], live: bool = True) -> None:
     background = __stitching(frame_top=extracted_frame_top, frame_center=extracted_frame_center, frame_bottom=extracted_frame_bottom, videos=videos)
 
     output_video = None
+    output_plot_video = None
+
+    monitor = screeninfo.get_monitors()[0]
 
     # Process videos
     logger.info(f"\033[32mPress Ctrl+C to exit\033[0m\n\n")
@@ -699,9 +735,6 @@ def process_videos(videos: list[str], live: bool = True) -> None:
 
     # Ball tracking
     ball_points = []
-    team1_points = []
-    team2_points = []
-
     while True:
 
         success_top, frame_top = video_top.read()
@@ -830,13 +863,14 @@ def process_videos(videos: list[str], live: bool = True) -> None:
 
                 cv2.arrowedLine(processed_frame, origin, estimated, params.BALL_COLOR, 4, tipLength=0.25)
 
-        draw_tracking_points.draw_points(team1_players=team1_players, team2_players=team2_players, team_players=team_players, ball_points=ball_points)
+        plot_frame = draw_tracking_points.draw_points(team1_players=team1_players, team2_players=team2_players, team_players=team_players, ball_points=ball_points)
         
         # Show processed video
         if live:
 
-            cv2.imshow("Processed video", cv2.resize(processed_frame, (processed_frame.shape[1] // 2, processed_frame.shape[0] // 2)))
-            
+            cv2.imshow("Processed video", cv2.resize(processed_frame, (monitor.width // 2, monitor.height // 2)))
+            cv2.imshow("Tracking plot", cv2.resize(plot_frame, (monitor.width // 2, monitor.height // 2)))
+
             if cv2.waitKey(25) & 0xFF == ord("q"):
                 break
         
@@ -845,6 +879,9 @@ def process_videos(videos: list[str], live: bool = True) -> None:
 
             if isfile(params.PROCESSED_VIDEO):
                 remove(params.PROCESSED_VIDEO)
+
+            if isfile(params.PROCESSED_PLOT_VIDEO):
+                remove(params.PROCESSED_PLOT_VIDEO)
 
             output_video = cv2.VideoWriter(
                 filename=params.PROCESSED_VIDEO, # Specify output file
@@ -855,6 +892,15 @@ def process_videos(videos: list[str], live: bool = True) -> None:
 
             OUTPUT_VIDEO = output_video
 
+            output_plot_video = cv2.VideoWriter(
+                filename=params.PROCESSED_PLOT_VIDEO, # Specify output file
+                fourcc=cv2.VideoWriter_fourcc(*"mp4v"), # Specify video type
+                fps=18, #int(min(video_top.get(cv2.CAP_PROP_FPS), video_center.get(cv2.CAP_PROP_FPS), video_bottom.get(cv2.CAP_PROP_FPS))), # Same fps of the original video
+                frameSize=plot_frame.shape[:2][::-1] # Specify shape (width, height)
+            )
+
+            OUTPUT_PLOT_VIDEO = output_plot_video
+
         if time() - elapsed > 1:
             elapsed = time()
             fps = 1
@@ -862,6 +908,7 @@ def process_videos(videos: list[str], live: bool = True) -> None:
             fps = fps + 1
 
         output_video.write(processed_frame)
+        output_plot_video.write(plot_frame)
 
         # Calculate total time
         total_time = sum([t for t in [stitching_time, motion_detection_time, motion_tracking_time, ball_detection_time, ball_tracking_time] if t is not None])
@@ -919,6 +966,7 @@ def process_videos(videos: list[str], live: bool = True) -> None:
     video_bottom.release()
 
     output_video.release()
+    output_plot_video.release()
 
 if __name__ == "__main__":
 
@@ -929,8 +977,8 @@ if __name__ == "__main__":
     # List original videos (to be processed)
     videos = [join(params.ORIGINAL_VIDEOS_FOLDER, f) for f in listdir(params.ORIGINAL_VIDEOS_FOLDER) if f.endswith(".mp4")]
 
-    #? Cut video (just once)
+    # Cut video (just once)
     videos = __cut_video(videos=videos)
 
     #? Process videos
-    process_videos(videos=videos, live=False)
+    process_videos(videos=videos, live=bool(script_args.live))

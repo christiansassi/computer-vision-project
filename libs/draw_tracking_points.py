@@ -1,9 +1,10 @@
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon, Circle
 
-import numpy as np
+from io import BytesIO
+from PIL import Image
 import cv2
-from datetime import datetime
+import numpy as np
 
 import inspect
 
@@ -43,7 +44,7 @@ def draw_points(team1_players: list, team2_players: list, team_players: list, ba
         min_y = min([point[1] for point in params.VOLLEYBALL_FIELD])
         max_y = max([point[1] for point in params.VOLLEYBALL_FIELD])
 
-        fig, ax = plt.subplots(figsize=(10, 5))
+        fig, ax = plt.subplots(figsize=(20, 10))
 
         function.fig = fig
         function.ax = ax
@@ -75,7 +76,6 @@ def draw_points(team1_players: list, team2_players: list, team_players: list, ba
     ax.invert_yaxis()
 
     plt.axis("off")
-    plt.show(block=False)
 
     # Plot items
     ax.add_patch(volleyball_field)
@@ -122,6 +122,15 @@ def draw_points(team1_players: list, team2_players: list, team_players: list, ba
     function.prev_team_players = team_players
     function.prev_ball_points = ball_points
 
-    # Show plot
-    fig.canvas.draw()
+    # Save plot in memory
+    buf = BytesIO()
+    fig.savefig(buf, format='png', bbox_inches='tight')
+    buf.seek(0)
 
+    img = Image.open(buf)
+    img_array = np.array(img)
+    buf.close()
+
+    img_array = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+
+    return img_array
