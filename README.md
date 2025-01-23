@@ -180,6 +180,7 @@ While this method is fast and efficient, it has some limitations. For instance, 
 
     ```bash
     python3 main.py
+    python3 main.py -live # Run in live mode
     ```
 
 > [!WARNING]
