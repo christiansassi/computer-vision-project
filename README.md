@@ -198,6 +198,14 @@ While this method is fast and efficient, it has some limitations. For instance, 
   <span><i>Tracking plot</i></span>
 </p>
 
+# Resources
+
+[Report](report/Top_view_stitching_and_tracking__tracking_and_geometry.pdf)
+
+[Presentation](https://www.canva.com/design/DAGXGWPdaG0/6xN45w81QcofHTlDwvXiJA/edit?utm_content=DAGXGWPdaG0&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)
+
+[Video](https://www.youtube.com/watch?v=kBeKlCkUAaY)
+
 # Contacts
 
 Pietro Bologna - [pietro.bologna@studenti.unitn.it](mailto:pietro.bologna@studenti.unitn.it)
