@@ -200,7 +200,7 @@ While this method is fast and efficient, it has some limitations. For instance, 
 
 # Resources
 
-[Report]([report/Top_view_stitching_and_tracking__tracking_and_geometry.pdf](https://github.com/christiansassi/computer-vision-project/blob/6e6fe11adcb30626130e4a154302e2331a9d4c1b/report/Top_view_stitching_and_tracking__tracking_and_geometry_.pdf))
+[Report](https://github.com/christiansassi/computer-vision-project/blob/d302cc1fa7fd1fcb81e19c02c43ca008ac82afa0/report/Top_view_stitching_and_tracking__tracking_and_geometry_.pdf)
 
 [Presentation](https://www.canva.com/design/DAGXGWPdaG0/6xN45w81QcofHTlDwvXiJA/edit?utm_content=DAGXGWPdaG0&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton)
 
